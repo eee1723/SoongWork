@@ -20,6 +20,7 @@ import {
   searchLearning, updateLessonProgress,
 } from './lib/learning.mjs';
 import { listExternalProcessingRuns, runSiliconFlowAsr, runSiliconFlowOcr } from './lib/external-processing.mjs';
+import { importDirectory } from './lib/bulk-import.mjs';
 
 function parseArgs(values) {
   const [command, ...rest] = values;
@@ -132,6 +133,17 @@ async function main() {
     }
     if (command === 'external-runs') {
       print(listExternalProcessingRuns(db, options['version-id'] || null));
+      return;
+    }
+    if (command === 'import-directory') {
+      if (!options['source-dir']) throw new Error('--source-dir 必填');
+      const report = await importDirectory({
+        root, db, config, sourceDir: resolve(options['source-dir']),
+        recursive: options.recursive ?? 'true', externalMedia: options['external-media'] ?? 'false',
+        confidentiality: options.confidentiality, sourceDomain: options['source-domain'] || 'bulk_import',
+      });
+      print(report);
+      if (!report.ok) process.exitCode = 2;
       return;
     }
     if (command === 'intake-file') {

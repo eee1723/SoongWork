@@ -3,6 +3,7 @@ import { readFile, stat } from 'node:fs/promises';
 import { basename, extname, isAbsolute, relative, resolve } from 'node:path';
 import { hashFile, originalForVersion, persistParsedBlocks } from './evidence.mjs';
 import { recordUsage } from './operations.mjs';
+import { assertInside } from './project.mjs';
 
 const API_ORIGIN = 'https://api.siliconflow.cn';
 const OCR_EXTENSIONS = new Map([
@@ -18,6 +19,13 @@ const ASR_MAX_BYTES = 50 * 1024 * 1024;
 const MAX_RESPONSE_TEXT = 2 * 1024 * 1024;
 
 const sha256 = (value) => createHash('sha256').update(value).digest('hex');
+
+function redactSecrets(value) {
+  return String(value)
+    .replace(/Bearer\s+[^\s"']+/gi, 'Bearer [REDACTED]')
+    .replace(/\bsk-[A-Za-z0-9_-]{8,}\b/g, '[REDACTED]')
+    .replace(/((?:api[_-]?key|token|secret)["']?\s*[:=]\s*["']?)[^\s,"'}]+/gi, '$1[REDACTED]');
+}
 
 async function apiKey(env, root) {
   const direct = env.SILICONFLOW_API_KEY?.trim();
@@ -92,7 +100,7 @@ function finishRun(db, runId, { status, artifactId = null, traceId = null, metad
   db.prepare(`UPDATE external_processing_run SET status = ?, artifact_id = ?, provider_trace_id = ?,
     response_meta_json = ?, error_message = ?, completed_at = ? WHERE run_id = ?`)
     .run(status, artifactId, traceId, metadata ? JSON.stringify(metadata) : null,
-      error ? String(error).slice(0, 2000) : null, completedAt, runId);
+      error ? redactSecrets(error).slice(0, 2000) : null, completedAt, runId);
   db.prepare(`INSERT INTO audit_event
     (event_id, occurred_at, event_type, object_type, object_id, actor, detail_json)
     VALUES (?, ?, ?, 'external_processing_run', ?, 'local-cli', ?)`)
@@ -110,7 +118,7 @@ async function requestWithRetry(url, options, { fetchImpl = fetch, retries = 3, 
     try {
       const response = await fetchImpl(url, { ...options, signal: AbortSignal.timeout(180_000) });
       if (response.ok) return response;
-      const body = (await response.text()).slice(0, 2000);
+      const body = redactSecrets((await response.text()).slice(0, 2000));
       lastError = new Error(`SiliconFlow HTTP ${response.status}: ${body}`);
       if (![429, 503, 504].includes(response.status) || attempt === retries) throw lastError;
       const retryAfter = Math.min(Number(response.headers.get('retry-after')) || attempt, 10);
@@ -148,15 +156,87 @@ function chatText(payload) {
   throw new Error('SiliconFlow OCR 响应缺少 choices[0].message.content');
 }
 
+async function ocrPptxImages({ root, db, config, source, env, fetchImpl, retries, model }) {
+  const rows = db.prepare(`SELECT derived_file_id AS derivedFileId, relative_path AS relativePath,
+    sha256, locator_json AS locatorJson FROM derived_file
+    WHERE version_id = ? AND file_kind = 'pptx-embedded-image' ORDER BY relative_path`).all(source.version_id);
+  if (!rows.length) throw new Error('PPTX 尚无可 OCR 的内嵌图片；请先运行 parse --version-id');
+  if (rows.length > 200) throw new Error('PPTX 内嵌图片超过 200 张安全上限，请拆分文件后处理');
+  const files = [];
+  let totalBytes = 0;
+  for (const row of rows) {
+    const file = assertInside(root, resolve(root, row.relativePath), 'PPTX derived image');
+    const extension = extname(file).toLowerCase();
+    const mime = OCR_EXTENSIONS.get(extension);
+    if (!mime) continue;
+    const fileStat = await stat(file);
+    if (fileStat.size > OCR_MAX_BYTES) throw new Error(`PPTX 图片超过 25 MiB 安全上限: ${row.relativePath}`);
+    totalBytes += fileStat.size;
+    if (totalBytes > 100 * 1024 * 1024) throw new Error('PPTX 待 OCR 图片总量超过 100 MiB 安全上限');
+    if (await hashFile(file) !== row.sha256) throw new Error(`PPTX 派生图片哈希不一致: ${row.relativePath}`);
+    files.push({ ...row, file, mime, locator: JSON.parse(row.locatorJson) });
+  }
+  if (!files.length) throw new Error('PPTX 没有 SiliconFlow OCR 支持的内嵌图片格式');
+  const prompt = '<image>\n<|grounding|>OCR this image. Preserve headings, tables, numbers and units. Do not infer missing text.';
+  const requestSha256 = sha256(`${source.sha256}:pptx-image-ocr:${model}:${prompt}:${files.map((item) => item.sha256).join(':')}`);
+  const run = startRun(db, { versionId: source.version_id, capability: 'ocr', model, requestSha256 });
+  if (run.duplicate) return { ...run, versionId: source.version_id, capability: 'ocr', model };
+  try {
+    const blocks = [];
+    const traceIds = [];
+    const usage = { prompt_tokens: 0, completion_tokens: 0 };
+    for (const [index, item] of files.entries()) {
+      const bytes = await readFile(item.file);
+      const response = await requestWithRetry(`${API_ORIGIN}/v1/chat/completions`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${await apiKey(env, root)}`, 'content-type': 'application/json', 'x-trace-id': `${run.runId}-${index + 1}` },
+        body: JSON.stringify({
+          model,
+          messages: [{ role: 'user', content: [
+            { type: 'image_url', image_url: { url: `data:${item.mime};base64,${bytes.toString('base64')}`, detail: 'high' } },
+            { type: 'text', text: prompt },
+          ] }],
+          max_tokens: 8192,
+          stream: false,
+        }),
+      }, { fetchImpl, retries });
+      const payload = await response.json();
+      const traceId = response.headers.get('x-siliconcloud-trace-id') || response.headers.get('x-trace-id') || `${run.runId}-${index + 1}`;
+      traceIds.push(traceId);
+      usage.prompt_tokens += Number(payload.usage?.prompt_tokens) || 0;
+      usage.completion_tokens += Number(payload.usage?.completion_tokens) || 0;
+      blocks.push(...chunks(chatText(payload), {
+        kind: 'slide_image_ocr', slides: item.locator.slides || [], image: basename(item.relativePath),
+        derivedFileId: item.derivedFileId,
+      }));
+    }
+    const parsed = await persistParsedBlocks({
+      root, db, source, parserName: 'siliconflow-pptx-image-ocr', parserVersion: parserVersion(model), artifactKind: 'ocr_text',
+      parsedBlocks: blocks,
+      metadata: { provider: 'siliconflow', model, externalProcessing: true, traceIds, images: files.length },
+    });
+    finishRun(db, run.runId, { status: 'succeeded', artifactId: parsed.artifactId, traceId: traceIds[0] || run.runId,
+      metadata: { traceIds, images: files.length, usage } });
+    recordTokenUsage(db, config, source, usage, model);
+    return { ...parsed, runId: run.runId, capability: 'ocr', model, traceIds, imageCount: files.length, locatorPrecision: 'slide-image' };
+  } catch (error) {
+    finishRun(db, run.runId, { status: 'failed', error: error.message });
+    throw error;
+  }
+}
+
 export async function runSiliconFlowOcr({ root, db, config, versionId, env = process.env, fetchImpl = fetch, retries = 3 }) {
   const source = await verifiedSource(root, db, versionId);
   assertExternalAllowed(config, source, env);
   const extension = extname(source.file).toLowerCase();
+  const model = safeModel(env.SILICONFLOW_OCR_MODEL, 'deepseek-ai/DeepSeek-OCR');
+  if (extension === '.pptx') {
+    return ocrPptxImages({ root, db, config, source, env, fetchImpl, retries, model });
+  }
   const mime = OCR_EXTENSIONS.get(extension);
   if (!mime) throw new Error(`OCR 不支持的原件格式: ${extension || '(无扩展名)'}`);
   const fileStat = await stat(source.file);
   if (fileStat.size > OCR_MAX_BYTES) throw new Error('OCR 原件超过 25 MiB 安全上限');
-  const model = safeModel(env.SILICONFLOW_OCR_MODEL, 'deepseek-ai/DeepSeek-OCR');
   const prompt = extension === '.pdf'
     ? '<image>\n<|grounding|>Convert the document to markdown.'
     : '<image>\n<|grounding|>OCR this image. Preserve headings, tables, numbers and units. Do not infer missing text.';

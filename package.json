@@ -18,6 +18,7 @@
     "siliconflow:setup": "powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File scripts/setup-siliconflow.ps1",
     "siliconflow:diagnose": "powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File scripts/setup-siliconflow.ps1 -DiagnoseOnly",
     "siliconflow:remove": "powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File scripts/setup-siliconflow.ps1 -Remove",
+    "materials:import": "powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File scripts/import-learning-materials.ps1",
     "dashboard": "node src/server.mjs",
     "learning:seed": "node src/cli.mjs learning-seed",
     "integrity": "node src/cli.mjs integrity",

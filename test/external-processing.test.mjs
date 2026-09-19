@@ -3,10 +3,12 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
+import JSZip from 'jszip';
 import { ensureProjectDirs } from '../src/lib/project.mjs';
 import { openCatalog } from '../src/lib/catalog.mjs';
 import { intakeFile } from '../src/lib/intake.mjs';
 import { searchEvidence } from '../src/lib/evidence.mjs';
+import { parseVersion } from '../src/lib/parsers.mjs';
 import { listExternalProcessingRuns, runSiliconFlowAsr, runSiliconFlowOcr } from '../src/lib/external-processing.mjs';
 
 const allowedConfig = {
@@ -88,11 +90,34 @@ test('failed external processing is recorded without claiming an artifact', asyn
   const image = join(root, 'failure.png');
   await writeFile(image, Buffer.from('synthetic'));
   const intake = await intakeFile({ root, config: allowedConfig, db, file: image, sourceType: 'image' });
-  const fetchImpl = async () => new Response(JSON.stringify({ message: 'rate limited' }), { status: 429 });
+  const fetchImpl = async () => new Response(JSON.stringify({ message: 'Bearer unit-test-secret rate limited' }), { status: 429 });
   await assert.rejects(() => runSiliconFlowOcr({
     root, db, config: allowedConfig, versionId: intake.versionId, env, fetchImpl, retries: 1,
   }), /HTTP 429/);
   const run = listExternalProcessingRuns(db)[0];
   assert.equal(run.status, 'failed');
   assert.equal(run.artifactId, null);
+  assert.doesNotMatch(run.errorMessage, /unit-test-secret/);
+});
+
+test('SiliconFlow OCR indexes verified PPTX embedded images with slide locators', async (t) => {
+  const { root, db } = await fixture();
+  t.after(() => db.close());
+  const zip = new JSZip();
+  zip.file('ppt/slides/slide3.xml', '<p:sld xmlns:p="p" xmlns:a="a"><a:t>正文标题</a:t></p:sld>');
+  zip.file('ppt/slides/_rels/slide3.xml.rels', '<Relationships><Relationship Id="rId1" Target="../media/image1.png"/></Relationships>');
+  zip.file('ppt/media/image1.png', Buffer.from('synthetic-slide-image'));
+  const pptx = join(root, 'synthetic.pptx');
+  await writeFile(pptx, await zip.generateAsync({ type: 'nodebuffer' }));
+  const intake = await intakeFile({ root, config: allowedConfig, db, file: pptx, title: '合成演示', sourceType: 'presentation' });
+  await parseVersion({ root, db, versionId: intake.versionId });
+  const fetchImpl = async () => new Response(JSON.stringify({
+    choices: [{ message: { content: '图片中的合成表格' }, finish_reason: 'stop' }],
+    usage: { prompt_tokens: 5, completion_tokens: 4 },
+  }), { status: 200, headers: { 'x-siliconcloud-trace-id': 'trace-pptx-1' } });
+  const result = await runSiliconFlowOcr({ root, db, config: allowedConfig, versionId: intake.versionId, env, fetchImpl, retries: 1 });
+  assert.equal(result.imageCount, 1);
+  const found = searchEvidence({ db, query: '合成表格' })[0];
+  assert.equal(found.locator.kind, 'slide_image_ocr');
+  assert.deepEqual(found.locator.slides, [3]);
 });

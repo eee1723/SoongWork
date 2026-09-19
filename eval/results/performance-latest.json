@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-19T11:02:55.989Z",
+  "generatedAt": "2026-09-19T11:09:29.374Z",
   "environment": {
     "node": "v24.17.0",
     "platform": "win32",
@@ -15,9 +15,9 @@
     "cacheState": "warm"
   },
   "latencyMs": {
-    "p50": 0.119,
-    "p95": 0.162,
-    "max": 0.308
+    "p50": 0.11,
+    "p95": 0.159,
+    "max": 0.285
   },
   "scope": "SQLite FTS/local substring retrieval only; excludes model, OCR, ASR, network and UI rendering."
 }

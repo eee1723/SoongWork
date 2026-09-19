@@ -172,6 +172,27 @@ PDF 应优先运行免费的本地 `parse`；只有扫描件或提取质量不�
 
 DSH MCP 同时提供 `ocr_source_external`、`transcribe_audio_external` 和只读的 `list_external_processing_runs`。两个发送类工具仍受上述全部门禁约束，不会因为安装了 Preset 就自动上传资料。
 
+### 一键导入整个资料目录
+
+不启用外部服务时，批量导入会本地解析 PPTX、PDF、XLSX、DOCX、文本、静态 HTML 和 VTT；图片、录音、视频只保存不可变原件，等待以后处理：
+
+```powershell
+npm run materials:import -- -SourceDir 'Z:\EEE_Project\mimi-learning\reference'
+
+# 等价的双击/命令行入口
+import-learning-materials.cmd "Z:\EEE_Project\mimi-learning\reference"
+```
+
+已经完成 SiliconFlow 安全配置且确认允许外传后，显式增加 `-ExternalMedia`：
+
+```powershell
+npm run materials:import -- -SourceDir 'Z:\EEE_Project\mimi-learning\reference' -ExternalMedia
+```
+
+此模式会对图片执行 OCR、对音视频执行 ASR、对本地无法提取文字的扫描 PDF 回退 OCR，并对 PPTX 已提取且哈希验证通过的内嵌图片逐张 OCR，定位保留到原幻灯片。默认递归子目录；使用 `-NoRecurse` 可只处理目录第一层。
+
+批处理不会因为单个文件失败而丢掉已完成结果。每次运行都会在 `runtime/import-runs/` 生成本地 JSON 报告；重复运行会复用相同原件、解析产物及成功的外部请求，不重复创建来源或重复计费。退出码 `2` 表示批次完成但包含失败项。
+
 ## 版本、记忆与记录
 
 ```powershell

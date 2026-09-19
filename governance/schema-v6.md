@@ -23,3 +23,5 @@ API Key 只从当前 CLI 进程环境或项目外的受限凭据文件读取，�
 - ASR 在供应商只返回整段文本时使用 `media_transcript` 和 `timing=not-provided`。
 
 上述定位不会被升级成页码或时间戳。需要精确时间定位时，仍应提供 VTT 或带起止毫秒的转录 JSON。
+
+PPTX 先由本地解析器提取内嵌图片并校验派生文件哈希；外部 OCR 结果使用 `slide_image_ocr`，保存原幻灯片列表和 `derived_file_id`。单个演示文件最多自动处理 200 张受支持图片，每张最多 25 MiB、合计最多 100 MiB。

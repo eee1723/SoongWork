@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 4,
+  "projectId": "pet-learning-local",
+  "name": "宠物医疗工作与学习",
+  "dataPolicy": {
+    "defaultConfidentiality": "internal",
+    "externalTransmissionAllowed": false,
+    "realCompanyDataApproved": false
+  },
+  "network": {
+    "mode": "deny-by-default",
+    "approvedServices": []
+  },
+  "dsh": {
+    "home": "runtime/dsh-home",
+    "knowledgeBaseId": "local-catalog:pet-learning-local",
+    "memoryScope": "catalog:pet-learning-local"
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "name": "pet-learning",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "宠物医疗工作与学习系统的本地优先证据治理核心",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "init": "node src/cli.mjs init",
+    "p0": "node src/cli.mjs check",
+    "dsh:safe": "node src/dsh-safe.mjs",
+    "dsh:config": "node src/dsh-safe.mjs --dump-config",
+    "desktop:diagnose": "powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File scripts/setup-dsh-desktop.ps1 -DiagnoseOnly",
+    "desktop:setup": "powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File scripts/setup-dsh-desktop.ps1",
+    "desktop:uninstall": "powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File scripts/setup-dsh-desktop.ps1 -Uninstall",
+    "dashboard": "node src/server.mjs",
+    "integrity": "node src/cli.mjs integrity",
+    "eval": "node src/eval.mjs",
+    "benchmark": "node src/benchmark.mjs",
+    "test": "node --test",
+    "verify": "npm run test && npm run eval && npm run benchmark && npm run p0 && npm run integrity && npm audit --audit-level=high"
+  },
+  "devDependencies": {
+    "@deepseek-ai/dsh": "0.1.5-rc.2"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "jszip": "3.10.2",
+    "mammoth": "1.12.3",
+    "pdfjs-dist": "4.10.38",
+    "zod": "4.6.5"
+  }
+}

@@ -1,0 +1,12 @@
+# 复制到隔离 profile 的 pnpm-workspace.yaml；只允许已审阅的原生依赖构建。
+packages:
+  - .
+
+nodeLinker: hoisted
+autoInstallPeers: false
+
+allowBuilds:
+  onnxruntime-node: true
+  protobufjs: true
+  sharp: true
+  tesseract.js: false

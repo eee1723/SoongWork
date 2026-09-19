@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>证据台 · 宠物医疗工作与学习</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="masthead">
+    <div>
+      <p class="kicker">LOCAL EVIDENCE DESK · 本地证据台</p>
+      <h1>每个结论，都能沿着标签回到原件。</h1>
+    </div>
+    <div class="seal" aria-label="安全状态">
+      <span class="seal-dot"></span>
+      <strong>本地只读视图</strong>
+      <small id="updated">正在读取账本</small>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <aside class="rail" aria-label="项目状态">
+      <div class="rail-label">今日台面</div>
+      <dl class="ledger" id="summary"></dl>
+      <nav class="tabs" aria-label="信息视图">
+        <button class="tab active" data-view="sources">资料版本</button>
+        <button class="tab" data-view="memories">候选记忆</button>
+        <button class="tab" data-view="learning">学习复习</button>
+        <button class="tab" data-view="usage">用量台账</button>
+        <button class="tab" data-view="governance">治理异常</button>
+      </nav>
+    </aside>
+
+    <section class="desk">
+      <form class="search-panel" id="search-form">
+        <label for="query">在当前项目证据中检索</label>
+        <div class="search-row">
+          <input id="query" name="query" autocomplete="off" placeholder="输入术语、短语或内部叫法" required>
+          <button type="submit">查找证据</button>
+        </div>
+        <p>结果只来自已索引的当前有效版本；短词会使用精确匹配。</p>
+      </form>
+
+      <section class="evidence-board" aria-live="polite">
+        <div class="board-heading">
+          <div>
+            <p class="kicker" id="view-kicker">SOURCE REGISTER</p>
+            <h2 id="view-title">资料版本</h2>
+          </div>
+          <span class="specimen-mark">PROJECT / PET-LEARNING</span>
+        </div>
+        <div id="content" class="cards"><p class="empty">正在读取本地账本…</p></div>
+      </section>
+    </section>
+  </main>
+
+  <template id="evidence-card">
+    <article class="evidence-card">
+      <div class="trace-spine"><span></span><span></span><span></span></div>
+      <div class="card-copy">
+        <p class="card-meta"></p>
+        <h3></h3>
+        <p class="excerpt"></p>
+        <div class="locator"></div>
+      </div>
+    </article>
+  </template>
+  <script src="/app.js" defer></script>
+</body>
+</html>

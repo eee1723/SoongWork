@@ -1,0 +1,491 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-19T10:00:07.945Z",
+  "corpusNotice": "全部内容为软件测试用虚构文本，不代表任何公司制度或临床知识。",
+  "documents": 20,
+  "queries": 60,
+  "recallAt10": 1,
+  "passed": true,
+  "cases": [
+    {
+      "query": "工号 A01",
+      "expectedDocument": "D01",
+      "matched": true,
+      "returned": [
+        "虚构入职培训"
+      ]
+    },
+    {
+      "query": "蓝色卡片",
+      "expectedDocument": "D01",
+      "matched": true,
+      "returned": [
+        "虚构入职培训"
+      ]
+    },
+    {
+      "query": "导师编号",
+      "expectedDocument": "D01",
+      "matched": true,
+      "returned": [
+        "虚构入职培训"
+      ]
+    },
+    {
+      "query": "样本标签",
+      "expectedDocument": "D02",
+      "matched": true,
+      "returned": [
+        "虚构样本接收"
+      ]
+    },
+    {
+      "query": "批次 B02",
+      "expectedDocument": "D02",
+      "matched": true,
+      "returned": [
+        "虚构样本接收"
+      ]
+    },
+    {
+      "query": "黄色周转盒",
+      "expectedDocument": "D02",
+      "matched": true,
+      "returned": [
+        "虚构样本接收"
+      ]
+    },
+    {
+      "query": "设备编号 C03",
+      "expectedDocument": "D03",
+      "matched": true,
+      "returned": [
+        "虚构设备清洁"
+      ]
+    },
+    {
+      "query": "白色表单",
+      "expectedDocument": "D03",
+      "matched": true,
+      "returned": [
+        "虚构设备清洁"
+      ]
+    },
+    {
+      "query": "CLEAN-DEMO",
+      "expectedDocument": "D03",
+      "matched": true,
+      "returned": [
+        "虚构设备清洁"
+      ]
+    },
+    {
+      "query": "产品代号 D04",
+      "expectedDocument": "D04",
+      "matched": true,
+      "returned": [
+        "虚构产品说明"
+      ]
+    },
+    {
+      "query": "紫色圆点",
+      "expectedDocument": "D04",
+      "matched": true,
+      "returned": [
+        "虚构产品说明"
+      ]
+    },
+    {
+      "query": "状态为样品",
+      "expectedDocument": "D04",
+      "matched": true,
+      "returned": [
+        "虚构产品说明"
+      ]
+    },
+    {
+      "query": "问题编号 E05",
+      "expectedDocument": "D05",
+      "matched": true,
+      "returned": [
+        "虚构沟通流程"
+      ]
+    },
+    {
+      "query": "沟通簿",
+      "expectedDocument": "D05",
+      "matched": true,
+      "returned": [
+        "虚构沟通流程"
+      ]
+    },
+    {
+      "query": "ORANGE-DEMO",
+      "expectedDocument": "D05",
+      "matched": true,
+      "returned": [
+        "虚构沟通流程"
+      ]
+    },
+    {
+      "query": "主题编号 F06",
+      "expectedDocument": "D06",
+      "matched": true,
+      "returned": [
+        "虚构学习计划"
+      ]
+    },
+    {
+      "query": "周三复习",
+      "expectedDocument": "D06",
+      "matched": true,
+      "returned": [
+        "虚构学习计划"
+      ]
+    },
+    {
+      "query": "三题自测",
+      "expectedDocument": "D06",
+      "matched": true,
+      "returned": [
+        "虚构学习计划"
+      ]
+    },
+    {
+      "query": "课件代号 G07",
+      "expectedDocument": "D07",
+      "matched": true,
+      "returned": [
+        "虚构影像课程"
+      ]
+    },
+    {
+      "query": "方格背景",
+      "expectedDocument": "D07",
+      "matched": true,
+      "returned": [
+        "虚构影像课程"
+      ]
+    },
+    {
+      "query": "定位术语",
+      "expectedDocument": "D07",
+      "matched": true,
+      "returned": [
+        "虚构影像课程"
+      ]
+    },
+    {
+      "query": "术语组 H08",
+      "expectedDocument": "D08",
+      "matched": true,
+      "returned": [
+        "虚构检验术语"
+      ]
+    },
+    {
+      "query": "化验演示",
+      "expectedDocument": "D08",
+      "matched": true,
+      "returned": [
+        "虚构检验术语"
+      ]
+    },
+    {
+      "query": "LAB-DEMO",
+      "expectedDocument": "D08",
+      "matched": true,
+      "returned": [
+        "虚构检验术语"
+      ]
+    },
+    {
+      "query": "课程号 I09",
+      "expectedDocument": "D09",
+      "matched": true,
+      "returned": [
+        "虚构护理课程"
+      ]
+    },
+    {
+      "query": "绿色铭牌",
+      "expectedDocument": "D09",
+      "matched": true,
+      "returned": [
+        "虚构护理课程"
+      ]
+    },
+    {
+      "query": "灰色铭牌",
+      "expectedDocument": "D09",
+      "matched": true,
+      "returned": [
+        "虚构护理课程"
+      ]
+    },
+    {
+      "query": "会议编号 J10",
+      "expectedDocument": "D10",
+      "matched": true,
+      "returned": [
+        "虚构会议纪要"
+      ]
+    },
+    {
+      "query": "演示清单",
+      "expectedDocument": "D10",
+      "matched": true,
+      "returned": [
+        "虚构会议纪要"
+      ]
+    },
+    {
+      "query": "五个空白字段",
+      "expectedDocument": "D10",
+      "matched": true,
+      "returned": [
+        "虚构会议纪要"
+      ]
+    },
+    {
+      "query": "旧版编号 K11",
+      "expectedDocument": "D11",
+      "matched": true,
+      "returned": [
+        "虚构旧版流程"
+      ]
+    },
+    {
+      "query": "红框标签",
+      "expectedDocument": "D11",
+      "matched": true,
+      "returned": [
+        "虚构旧版流程"
+      ]
+    },
+    {
+      "query": "已替代",
+      "expectedDocument": "D11",
+      "matched": true,
+      "returned": [
+        "虚构旧版流程"
+      ]
+    },
+    {
+      "query": "新版编号 L12",
+      "expectedDocument": "D12",
+      "matched": true,
+      "returned": [
+        "虚构新版流程"
+      ]
+    },
+    {
+      "query": "电子蓝框标签",
+      "expectedDocument": "D12",
+      "matched": true,
+      "returned": [
+        "虚构新版流程"
+      ]
+    },
+    {
+      "query": "CURRENT-DEMO",
+      "expectedDocument": "D12",
+      "matched": true,
+      "returned": [
+        "虚构新版流程"
+      ]
+    },
+    {
+      "query": "录音代号 M13",
+      "expectedDocument": "D13",
+      "matched": true,
+      "returned": [
+        "虚构录音转录"
+      ]
+    },
+    {
+      "query": "核对身份",
+      "expectedDocument": "D13",
+      "matched": true,
+      "returned": [
+        "虚构录音转录"
+      ]
+    },
+    {
+      "query": "记录时间",
+      "expectedDocument": "D13",
+      "matched": true,
+      "returned": [
+        "虚构录音转录"
+      ]
+    },
+    {
+      "query": "快照编号 N14",
+      "expectedDocument": "D14",
+      "matched": true,
+      "returned": [
+        "虚构网页快照"
+      ]
+    },
+    {
+      "query": "公开演示页",
+      "expectedDocument": "D14",
+      "matched": true,
+      "returned": [
+        "虚构网页快照"
+      ]
+    },
+    {
+      "query": "抓取日期",
+      "expectedDocument": "D14",
+      "matched": true,
+      "returned": [
+        "虚构网页快照"
+      ]
+    },
+    {
+      "query": "幻灯片代号 O15",
+      "expectedDocument": "D15",
+      "matched": true,
+      "returned": [
+        "虚构幻灯片培训"
+      ]
+    },
+    {
+      "query": "证据抽屉",
+      "expectedDocument": "D15",
+      "matched": true,
+      "returned": [
+        "虚构幻灯片培训"
+      ]
+    },
+    {
+      "query": "SLIDE-NOTE",
+      "expectedDocument": "D15",
+      "matched": true,
+      "returned": [
+        "虚构幻灯片培训"
+      ]
+    },
+    {
+      "query": "文档编号 P16",
+      "expectedDocument": "D16",
+      "matched": true,
+      "returned": [
+        "虚构文字制度"
+      ]
+    },
+    {
+      "query": "版本标签",
+      "expectedDocument": "D16",
+      "matched": true,
+      "returned": [
+        "虚构文字制度"
+      ]
+    },
+    {
+      "query": "CELL-DEMO",
+      "expectedDocument": "D16",
+      "matched": true,
+      "returned": [
+        "虚构文字制度"
+      ]
+    },
+    {
+      "query": "案例编号 Q17",
+      "expectedDocument": "D17",
+      "matched": true,
+      "returned": [
+        "虚构脱敏案例"
+      ]
+    },
+    {
+      "query": "示例甲",
+      "expectedDocument": "D17",
+      "matched": true,
+      "returned": [
+        "虚构脱敏案例"
+      ]
+    },
+    {
+      "query": "示例乙",
+      "expectedDocument": "D17",
+      "matched": true,
+      "returned": [
+        "虚构脱敏案例"
+      ]
+    },
+    {
+      "query": "规则编号 R18",
+      "expectedDocument": "D18",
+      "matched": true,
+      "returned": [
+        "虚构保密规则"
+      ]
+    },
+    {
+      "query": "不得外发",
+      "expectedDocument": "D18",
+      "matched": true,
+      "returned": [
+        "虚构保密规则"
+      ]
+    },
+    {
+      "query": "DENY-DEMO",
+      "expectedDocument": "D18",
+      "matched": true,
+      "returned": [
+        "虚构保密规则"
+      ]
+    },
+    {
+      "query": "复盘编号 S19",
+      "expectedDocument": "D19",
+      "matched": true,
+      "returned": [
+        "虚构项目复盘"
+      ]
+    },
+    {
+      "query": "哈希一致",
+      "expectedDocument": "D19",
+      "matched": true,
+      "returned": [
+        "虚构项目复盘"
+      ]
+    },
+    {
+      "query": "失败样例",
+      "expectedDocument": "D19",
+      "matched": true,
+      "returned": [
+        "虚构项目复盘"
+      ]
+    },
+    {
+      "query": "问答编号 T20",
+      "expectedDocument": "D20",
+      "matched": true,
+      "returned": [
+        "虚构常见问题"
+      ]
+    },
+    {
+      "query": "资料不足",
+      "expectedDocument": "D20",
+      "matched": true,
+      "returned": [
+        "虚构常见问题"
+      ]
+    },
+    {
+      "query": "存在冲突",
+      "expectedDocument": "D20",
+      "matched": true,
+      "returned": [
+        "虚构常见问题"
+      ]
+    }
+  ]
+}

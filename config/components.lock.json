@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "verifiedAt": "2026-09-19",
+  "components": {
+    "dsh": {
+      "package": "@deepseek-ai/dsh",
+      "version": "0.1.5-rc.2",
+      "integrity": "sha512-8Xc8hCQHcIWRmTCVU/xZdp6/qMsWMeAd2ObChKDEsfhUPJFXx6H0lgeb1DxUMD86HZrrVN+1bCvn1ppjZ/fOxw==",
+      "profile": "headless",
+      "status": "installed-local-p0"
+    },
+    "knowledgeBackend": {
+      "package": "pet-learning/local-catalog",
+      "version": "0.1.0",
+      "license": "project-internal",
+      "status": "approved",
+      "scope": "local-catalog:pet-learning-local",
+      "audit": {
+        "high": 0,
+        "critical": 0
+      }
+    },
+    "dshKnowledgeCandidate": {
+      "package": "dsh-knowledge",
+      "version": "0.4.0",
+      "integrity": "sha512-Pp0gcsJ+UCGnPdvJEJZdvaRHEP+WEYPgnUnrEAj9gnjFvyxQXF2MwQHUWPpqoYRdLb1gG24elLtsk1w7QfWfcQ==",
+      "license": "AGPL-3.0",
+      "status": "quarantined-security-review",
+      "installationState": "dependency-present-bundle-not-registered",
+      "audit": {
+        "high": 2,
+        "critical": 0,
+        "advisories": [
+          "GHSA-f88m-g3jw-g9cj",
+          "GHSA-rgj7-g3m4-5g8c"
+        ]
+      }
+    },
+    "memoryBackend": {
+      "package": "pet-learning/local-catalog",
+      "version": "0.1.0",
+      "status": "approved",
+      "scope": "catalog:pet-learning-local"
+    }
+  }
+}

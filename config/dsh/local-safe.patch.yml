@@ -1,0 +1,38 @@
+# P0 安全覆盖层：不发送反馈遥测，不提供网络搜索/抓取工具，
+# 并把 Skill 根限定到当前 Git 项目的 .dsh/skills。
+- id: session-telemetry-otel
+  disabled: true
+
+- id: session-log-deepseek
+  disabled: true
+
+- id: skill-filesystem
+  config:
+    includeDefaultRoots: false
+    customSkillDirs:
+      - !!js process.cwd() + '/.dsh/skills'
+    watch: true
+
+- id: web-search-deepseek
+  disabled: true
+
+- id: web-fetch-http
+  disabled: true
+
+- id: tool-web
+  disabled: true
+
+# DSH 只通过 stdio 访问当前项目的本地治理工具；不开放网络传输。
+- insert:
+    - id: mcp-pet-learning
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: pet_learning
+        transport: stdio
+        command: !!js process.execPath
+        args:
+          - !!js process.cwd() + '/src/mcp-server.mjs'
+        cwd: !!js process.cwd()
+        env:
+          PET_LEARNING_ROOT: !!js process.cwd()
+        failOnStartupError: true

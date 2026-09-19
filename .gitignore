@@ -1,0 +1,20 @@
+# 原件、派生内容和运行状态默认不进入 Git。
+sources/
+derived/
+inbox/
+runtime/
+exports/
+journal/
+knowledge/
+*.sqlite*
+*.db*
+.env
+.env.*
+!.env.example
+
+# 本地生成的 P0 报告包含机器路径与环境信息。
+governance/p0-compatibility-report.json
+governance/p0-compatibility-report.md
+
+node_modules/
+coverage/

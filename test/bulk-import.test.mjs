@@ -45,3 +45,14 @@ test('directory import refuses project-generated trees', async (t) => {
   t.after(() => db.close());
   await assert.rejects(() => importDirectory({ root, db, config, sourceDir: join(root, 'sources') }), /项目生成目录/);
 });
+
+test('PPT image OCR requires the explicit external-media switch', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'pet-bulk-ppt-gate-'));
+  const input = await mkdtemp(join(tmpdir(), 'pet-bulk-ppt-input-'));
+  await ensureProjectDirs(root);
+  const db = openCatalog(root, config);
+  t.after(() => db.close());
+  await assert.rejects(() => importDirectory({
+    root, db, config, sourceDir: input, externalMedia: false, pptImageOcr: true,
+  }), /要求 externalMedia=true/);
+});

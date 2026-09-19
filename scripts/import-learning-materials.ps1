@@ -16,7 +16,8 @@ param(
   [string]$Confidentiality = 'internal',
   [string]$SourceDomain = 'training_materials',
   [switch]$NoRecurse,
-  [switch]$ExternalMedia
+  [switch]$ExternalMedia,
+  [switch]$PptImageOcr
 )
 
 Set-StrictMode -Version Latest
@@ -28,7 +29,8 @@ if (-not (Test-Path -LiteralPath $resolvedSource -PathType Container)) { throw "
 
 Write-Host "项目：$projectRoot" -ForegroundColor Cyan
 Write-Host "资料：$resolvedSource" -ForegroundColor Cyan
-Write-Host "递归：$(-not $NoRecurse)；外部 OCR/ASR：$([bool]$ExternalMedia)" -ForegroundColor Cyan
+if ($PptImageOcr -and -not $ExternalMedia) { throw '-PptImageOcr 必须与 -ExternalMedia 一起使用。' }
+Write-Host "递归：$(-not $NoRecurse)；外部 OCR/ASR：$([bool]$ExternalMedia)；PPT 图片 OCR：$([bool]$PptImageOcr)" -ForegroundColor Cyan
 if ($ExternalMedia) {
   Write-Host '注意：图片、扫描 PDF、PPT 内嵌图片和音频可能完整发送给 SiliconFlow。项目门禁仍会在未授权时阻止请求。' -ForegroundColor Yellow
 }
@@ -40,6 +42,7 @@ try {
     '--source-dir', $resolvedSource,
     '--recursive', $((-not $NoRecurse).ToString().ToLowerInvariant()),
     '--external-media', $ExternalMedia.ToString().ToLowerInvariant(),
+    '--ppt-image-ocr', $PptImageOcr.ToString().ToLowerInvariant(),
     '--confidentiality', $Confidentiality,
     '--source-domain', $SourceDomain
   )

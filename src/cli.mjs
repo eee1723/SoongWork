@@ -140,6 +140,7 @@ async function main() {
       const report = await importDirectory({
         root, db, config, sourceDir: resolve(options['source-dir']),
         recursive: options.recursive ?? 'true', externalMedia: options['external-media'] ?? 'false',
+        pptImageOcr: options['ppt-image-ocr'] ?? 'false',
         confidentiality: options.confidentiality, sourceDomain: options['source-domain'] || 'bulk_import',
       });
       print(report);

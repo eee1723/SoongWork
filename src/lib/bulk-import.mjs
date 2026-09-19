@@ -48,7 +48,7 @@ function toBoolean(value, fallback = false) {
 }
 
 export async function importDirectory({
-  root, db, config, sourceDir, recursive = true, externalMedia = false,
+  root, db, config, sourceDir, recursive = true, externalMedia = false, pptImageOcr = false,
   confidentiality = null, sourceDomain = 'bulk_import', env = process.env,
 }) {
   if (!sourceDir) throw new Error('sourceDir 必填');
@@ -61,6 +61,8 @@ export async function importDirectory({
   }
   const includeNested = toBoolean(recursive, true);
   const useExternal = toBoolean(externalMedia, false);
+  const usePptImageOcr = toBoolean(pptImageOcr, false);
+  if (usePptImageOcr && !useExternal) throw new Error('pptImageOcr=true 要求 externalMedia=true');
   const files = await discover(directory, includeNested);
   const startedAt = new Date().toISOString();
   const report = {
@@ -69,6 +71,7 @@ export async function importDirectory({
     sourceDirectory: directory,
     recursive: includeNested,
     externalMedia: useExternal,
+    pptImageOcr: usePptImageOcr,
     startedAt,
     completedAt: null,
     totals: { discovered: files.length, supported: 0, received: 0, indexed: 0, storedOnly: 0, skipped: 0, failed: 0 },
@@ -112,7 +115,7 @@ export async function importDirectory({
             throw error;
           }
         }
-        if (extension === '.pptx' && useExternal && Number(item.localParse?.imageCount || 0) > 0) {
+        if (extension === '.pptx' && usePptImageOcr && Number(item.localParse?.imageCount || 0) > 0) {
           try {
             item.externalProcessing = await runSiliconFlowOcr({ root, db, config, versionId: intake.versionId, env });
             item.status = 'indexed-local-and-image-ocr';

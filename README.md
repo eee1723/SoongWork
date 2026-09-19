@@ -189,7 +189,15 @@ import-learning-materials.cmd "Z:\EEE_Project\mimi-learning\reference"
 npm run materials:import -- -SourceDir 'Z:\EEE_Project\mimi-learning\reference' -ExternalMedia
 ```
 
-此模式会对图片执行 OCR、对音视频执行 ASR、对本地无法提取文字的扫描 PDF 回退 OCR，并对 PPTX 已提取且哈希验证通过的内嵌图片逐张 OCR，定位保留到原幻灯片。默认递归子目录；使用 `-NoRecurse` 可只处理目录第一层。
+此模式会对独立图片执行 OCR、对音视频执行 ASR，并对本地无法提取文字的扫描 PDF 回退 OCR。默认递归子目录；使用 `-NoRecurse` 可只处理目录第一层。
+
+PPTX 内嵌图片可能很多，必须另加 `-PptImageOcr` 才会逐张发送，识别结果定位保留到原幻灯片：
+
+```powershell
+npm run materials:import -- -SourceDir 'Z:\EEE_Project\mimi-learning\reference' -ExternalMedia -PptImageOcr
+```
+
+当前示例目录提取到 294 张 PPT 内嵌图片，因此建议先处理独立 JPG/扫描 PDF，确认费用与质量后再开启 PPT 图片 OCR。
 
 批处理不会因为单个文件失败而丢掉已完成结果。每次运行都会在 `runtime/import-runs/` 生成本地 JSON 报告；重复运行会复用相同原件、解析产物及成功的外部请求，不重复创建来源或重复计费。退出码 `2` 表示批次完成但包含失败项。
 

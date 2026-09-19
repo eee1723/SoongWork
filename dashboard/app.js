@@ -49,6 +49,7 @@ function renderSummary(summary) {
     ['学习阶段', summary.stages], ['课程', summary.lessons], ['已理解', summary.understoodLessons],
     ['来源', summary.sources], ['已索引', summary.indexed], ['待审结论', summary.draftClaims],
     ['开放冲突', summary.openConflicts], ['待复习', summary.reviewDue], ['学习问题', summary.pendingLearningIssues],
+    ['外部失败', summary.failedExternalProcessing],
   ];
   const ledger = document.querySelector('#summary');
   ledger.replaceChildren(...fields.map(([label, value]) => {
@@ -223,6 +224,8 @@ async function showGovernance() {
     ...issues.map((row) => ({ meta: `LEARNING ISSUE · ${row.riskLevel}`, title: row.title, excerpt: row.questionToResolve || row.learningGuidance, locator: row.sourceLocator || row.issueId })),
     ...data.conflicts.map((row) => ({ meta: 'OPEN CONFLICT', title: row.title, excerpt: '不同版本尚未完成授权裁决', locator: row.conflict_group_id })),
     ...data.failedJobs.map((row) => ({ meta: 'FAILED JOB', title: row.job_type, excerpt: row.last_error, locator: row.job_id })),
+    ...data.failedExternalProcessing.map((row) => ({ meta: `EXTERNAL ${row.capability.toUpperCase()} FAILED`, title: row.model,
+      excerpt: row.errorMessage || '外部处理失败', locator: `${row.runId} / ${row.versionId}` })),
     ...data.invalidCitations.map((row) => ({ meta: 'BROKEN CITATION', title: row.citationId, excerpt: '原件、正文或定位校验失败', locator: row.blockId })),
   ];
   if (!entries.length) return empty('当前没有开放冲突、失败任务、学习问题或失效引用。');

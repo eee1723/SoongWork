@@ -118,6 +118,60 @@ node src/cli.mjs attach-keyframe --version-id "VER-video" --file "C:\path\frame.
 
 原始与校订转写并存，时间定位回到媒体原件；系统不会把“提供了转写”误报成“已运行 ASR”。
 
+## SiliconFlow OCR 与录音转写
+
+OCR/ASR 会把指定原件完整发送给 SiliconFlow，默认被多重门禁阻止。只有获得资料外传许可后，才同时完成以下设置：
+
+1. 在 `config/project.json` 将 `dataPolicy.externalTransmissionAllowed` 设为 `true`；内部资料还要求 `realCompanyDataApproved=true`。
+2. 在 `network.approvedServices` 中加入 `https://api.siliconflow.cn`。
+3. 配置项目目录外的本机凭据文件和显式环境开关；不要把 API Key 发到聊天、写入仓库或放进命令历史。
+
+Windows 推荐直接运行安全配置脚本。它会用隐藏输入读取 Key，保存到 `%APPDATA%\pet-learning\secrets`，收紧为当前用户 ACL，并设置 DSH 可以继承的凭据文件路径：
+
+```powershell
+# 也可以直接双击项目根目录的 setup-siliconflow.cmd
+npm run siliconflow:setup
+npm run siliconflow:diagnose
+
+# 不再使用时删除托管凭据与用户环境开关
+npm run siliconflow:remove
+```
+
+配置后要完全重启终端和 DSH Desktop。DSH 会主动清除名称包含 `KEY`、`TOKEN` 等字样的父进程环境变量，因此 DSH 场景应使用上述凭据文件方案；脚本不会修改项目的外传许可。
+
+只在当前 PowerShell 会话直接运行 CLI 时，也可以临时设置：
+
+```powershell
+$env:SILICONFLOW_API_KEY = '在本机粘贴你的 Key'
+$env:PET_LEARNING_ALLOW_EXTERNAL_PROCESSING = '1'
+
+# 可选模型覆盖；不设置时使用下面两个默认值
+$env:SILICONFLOW_OCR_MODEL = 'deepseek-ai/DeepSeek-OCR'
+$env:SILICONFLOW_ASR_MODEL = 'FunAudioLLM/SenseVoiceSmall'
+```
+
+图片或扫描 PDF：
+
+```powershell
+node src/cli.mjs intake-file --file "C:\path\scan.jpg" --title "扫描资料" --source-type image --confidentiality internal
+node src/cli.mjs ocr --version-id "VER-..."
+```
+
+录音：
+
+```powershell
+node src/cli.mjs intake-file --file "C:\path\meeting.m4a" --title "培训录音" --source-type audio --confidentiality internal
+node src/cli.mjs transcribe-audio --version-id "VER-..."
+node src/cli.mjs external-runs --version-id "VER-..."
+node src/cli.mjs search --query "转录中的关键词"
+```
+
+PDF 应优先运行免费的本地 `parse`；只有扫描件或提取质量不足时再显式运行 `ocr`。OCR 支持 PDF、PNG、JPEG、WebP、BMP、GIF，单文件本地安全上限 25 MiB。ASR 支持 MP3、WAV、M4A、MP4、FLAC、OGG、OPUS、WebM，并遵守 SiliconFlow 单文件 50MB、1 小时限制；超限文件需先在本地切分。
+
+当前 SiliconFlow 转录接口只返回整段文本，因此产物会标记 `timing=not-provided`，不会伪造时间戳。PDF OCR 若没有页级映射，同样只标记文档级定位。失败、模型、追踪 ID 和不含密钥的响应摘要会写入审计表；成功文本进入现有全文索引。官方接口说明：[语音转录](https://docs.siliconflow.cn/docs/api/audio-transcriptions-post)、[多模态/OCR](https://docs.siliconflow.cn/docs/userguide/capabilities/multimodal-vision)。
+
+DSH MCP 同时提供 `ocr_source_external`、`transcribe_audio_external` 和只读的 `list_external_processing_runs`。两个发送类工具仍受上述全部门禁约束，不会因为安装了 Preset 就自动上传资料。
+
 ## 版本、记忆与记录
 
 ```powershell
@@ -158,7 +212,7 @@ node src/cli.mjs delete-source --source-id "SRC-..." --confirm-source-id "SRC-..
 
 `npm run dsh:safe -- <参数>` 使用精确锁定的 `@deepseek-ai/dsh@0.1.5-rc.2`、独立 `runtime/dsh-home`、只读默认权限、项目内 Skills，以及 `pet_learning` 本地 stdio MCP。展开配置可用 `npm run dsh:config` 查看。
 
-MCP 暴露 `search_evidence`、`list_sources`、`get_evidence_block`、`check_integrity`、`add_memory_candidate`、`add_work_log`、`add_learning_log`、`list_learning_path`、`get_learning_lesson`、`update_learning_progress`。模型不能通过该接口直接确认记忆、删除资料、覆盖已审结论或访问网络。
+MCP 暴露证据、学习、日志以及受控 OCR/ASR 工具。模型不能通过该接口直接确认记忆、删除资料或覆盖已审结论；`ocr_source_external` 与 `transcribe_audio_external` 是仅在全部外传门禁开启时才允许联网的例外。
 
 DSH Desktop 使用上方的一键安装器；`npm run dsh:safe` 是独立终端模式，两者共享同一个本地项目与 MCP 服务，但配置目录互不覆盖。
 
@@ -167,6 +221,6 @@ DSH Desktop 使用上方的一键安装器；`npm run dsh:safe` 是独立终端�
 ## 已知边界
 
 - `dsh-knowledge@0.4.0` 因 High 级依赖告警和 AGPL 审查保持隔离，未注册到 DSH；当前正式后端是项目自有本地 catalog。
-- OCR、自动 ASR、自动视频关键帧和外部 embedding 未启用；需要时必须另做依赖、许可、硬件和数据流验收。
+- SiliconFlow OCR/ASR 已实现但默认门禁关闭；自动视频关键帧和外部 embedding 仍未启用，需要时必须另做依赖、许可、硬件和数据流验收。
 - AGENTS 与 Skills 的文件发现、MCP 协议和持久化已自动测试；真实 DSH 模型会话中的提示词哨兵仍需要获批模型凭据后观察验证。
 - 真实公司资料和病例资料仍被配置门禁阻止。P0 兼容报告位于 `governance/p0-compatibility-report.md`。

@@ -71,6 +71,7 @@ export async function deletionImpact({ root, db, config, sourceId }) {
       citations: aggregate('citation', 'version_id'), memories: aggregate('memory_item', 'source_version_id'),
       workLogs: aggregate('work_log', 'source_version_id'), learningLogs: aggregate('learning_log', 'source_version_id'),
       transcripts: aggregate('transcript_attachment', 'media_version_id'), keyframes: aggregate('media_keyframe', 'media_version_id'),
+      externalProcessingRuns: aggregate('external_processing_run', 'version_id'),
     },
     backupCopiesUnaffected: await countBackupCopies(root, sourceId),
     consequences: [
@@ -121,6 +122,7 @@ export async function deleteSource({ root, db, config, sourceId, confirmSourceId
         db.prepare('DELETE FROM transcript_attachment WHERE media_version_id = ?').run(versionId);
         db.prepare('DELETE FROM media_keyframe WHERE media_version_id = ?').run(versionId);
         db.prepare('DELETE FROM derived_file WHERE version_id = ?').run(versionId);
+        db.prepare('UPDATE external_processing_run SET artifact_id = NULL WHERE version_id = ?').run(versionId);
         db.prepare('DELETE FROM block WHERE version_id = ?').run(versionId);
         db.prepare('DELETE FROM artifact WHERE version_id = ?').run(versionId);
         db.prepare('DELETE FROM source_snapshot WHERE version_id = ?').run(versionId);

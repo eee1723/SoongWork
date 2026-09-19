@@ -15,7 +15,7 @@ import {
 } from '../src/lib/state.mjs';
 
 const config = {
-  schemaVersion: 5,
+  schemaVersion: 6,
   projectId: 'test-project',
   dataPolicy: { defaultConfidentiality: 'internal' },
 };
@@ -160,7 +160,7 @@ test('schema v1 catalog migrates transactionally to the current schema', async (
   v1.close();
   const v2 = openCatalog(root, config);
   try {
-    assert.equal(v2.prepare('SELECT schema_version AS version FROM project_meta').get().version, 5);
+    assert.equal(v2.prepare('SELECT schema_version AS version FROM project_meta').get().version, 6);
     assert.doesNotThrow(() => v2.prepare('SELECT COUNT(*) FROM artifact').get());
     assert.doesNotThrow(() => v2.prepare('SELECT COUNT(*) FROM memory_item').get());
     assert.doesNotThrow(() => v2.prepare('SELECT COUNT(*) FROM usage_ledger').get());

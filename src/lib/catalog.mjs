@@ -443,6 +443,29 @@ CREATE INDEX IF NOT EXISTS idx_progress_status ON lesson_progress(status, review
 CREATE INDEX IF NOT EXISTS idx_learning_issue_status ON learning_issue(status, risk_level);
 `;
 
+const MIGRATION_V6_SQL = `
+CREATE TABLE IF NOT EXISTS external_processing_run (
+  run_id TEXT PRIMARY KEY,
+  version_id TEXT NOT NULL REFERENCES source_version(version_id),
+  capability TEXT NOT NULL CHECK (capability IN ('ocr','asr')),
+  provider TEXT NOT NULL,
+  model TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('running','succeeded','failed')),
+  request_sha256 TEXT NOT NULL,
+  artifact_id TEXT REFERENCES artifact(artifact_id),
+  provider_trace_id TEXT,
+  response_meta_json TEXT,
+  error_message TEXT,
+  created_at TEXT NOT NULL,
+  completed_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_external_processing_version
+  ON external_processing_run(version_id, capability, created_at);
+CREATE INDEX IF NOT EXISTS idx_external_processing_status
+  ON external_processing_run(status, created_at);
+`;
+
 export function openCatalog(root, config) {
   const file = assertInside(root, join(root, 'runtime', 'catalog.sqlite'), 'catalog');
   const db = new DatabaseSync(file);
@@ -453,7 +476,7 @@ export function openCatalog(root, config) {
     db.close();
     throw new Error(`目录账本属于项目 ${existingProject.project_id}，拒绝以 ${config.projectId} 打开`);
   }
-  if (config.schemaVersion > 5) {
+  if (config.schemaVersion > 6) {
     db.close();
     throw new Error(`代码不支持 schemaVersion ${config.schemaVersion}`);
   }
@@ -498,8 +521,17 @@ export function openCatalog(root, config) {
       db.exec(MIGRATION_V5_SQL);
       db.prepare('UPDATE project_meta SET schema_version = 5 WHERE project_id = ?').run(config.projectId);
     });
+    currentVersion = 5;
   } else if (config.schemaVersion >= 5) {
     db.exec(MIGRATION_V5_SQL);
+  }
+  if (currentVersion < 6 && config.schemaVersion >= 6) {
+    transaction(db, () => {
+      db.exec(MIGRATION_V6_SQL);
+      db.prepare('UPDATE project_meta SET schema_version = 6 WHERE project_id = ?').run(config.projectId);
+    });
+  } else if (config.schemaVersion >= 6) {
+    db.exec(MIGRATION_V6_SQL);
   }
   return db;
 }

@@ -8,13 +8,14 @@ import { searchEvidence } from './lib/evidence.mjs';
 import { integrityReport } from './lib/maintenance.mjs';
 import { addLearningLog, addMemory, addWorkLog } from './lib/state.mjs';
 import { learningOverview, lessonDetail, updateLessonProgress } from './lib/learning.mjs';
+import { listExternalProcessingRuns, runSiliconFlowAsr, runSiliconFlowOcr } from './lib/external-processing.mjs';
 
 const root = projectRoot(process.env.PET_LEARNING_ROOT || process.cwd());
 await ensureProjectDirs(root);
 const config = await loadConfig(root);
 const db = openCatalog(root, config);
 
-const server = new McpServer({ name: 'pet-learning-local', version: '0.1.0' });
+const server = new McpServer({ name: 'pet-learning-local', version: '0.2.0' });
 
 function result(value) {
   return {
@@ -125,6 +126,24 @@ server.registerTool('update_learning_progress', {
   },
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
 }, async (input) => result(updateLessonProgress({ db, ...input })));
+
+server.registerTool('list_external_processing_runs', {
+  description: '列出 OCR/ASR 外部处理的成功、失败和追踪状态；不返回或读取 API 密钥。',
+  inputSchema: { versionId: z.string().min(1).optional() },
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+}, async ({ versionId }) => result(listExternalProcessingRuns(db, versionId || null)));
+
+server.registerTool('ocr_source_external', {
+  description: '把指定图片或 PDF 原件完整发送给已批准的 SiliconFlow OCR，并将结果写入本地证据索引。需要项目外传许可、域名白名单、本机显式开关和 API Key。',
+  inputSchema: { versionId: z.string().min(1).describe('待 OCR 的图片或 PDF 版本标识') },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+}, async ({ versionId }) => result(await runSiliconFlowOcr({ root, db, config, versionId })));
+
+server.registerTool('transcribe_audio_external', {
+  description: '把指定音频原件完整发送给已批准的 SiliconFlow ASR，并将整段转录写入本地证据索引。官方响应不含时间戳时不会伪造时间定位。需要项目外传许可、域名白名单、本机显式开关和 API Key。',
+  inputSchema: { versionId: z.string().min(1).describe('待转录的音频版本标识') },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+}, async ({ versionId }) => result(await runSiliconFlowAsr({ root, db, config, versionId })));
 
 const shutdown = async () => {
   db.close();

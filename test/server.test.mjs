@@ -11,7 +11,7 @@ import { createDashboardServer } from '../src/server.mjs';
 import { importLearningBundle } from '../src/lib/learning.mjs';
 
 const config = {
-  schemaVersion: 5,
+  schemaVersion: 6,
   projectId: 'dashboard-test',
   name: '测试看板',
   dataPolicy: { defaultConfidentiality: 'internal', externalTransmissionAllowed: false, realCompanyDataApproved: false },

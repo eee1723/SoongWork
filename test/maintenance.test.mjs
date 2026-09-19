@@ -11,7 +11,7 @@ import { citeClaim, createClaim, indexPlainText, searchEvidence } from '../src/l
 import { createBackup, exportCatalog, integrityReport, restoreBackup } from '../src/lib/maintenance.mjs';
 
 const config = {
-  schemaVersion: 5,
+  schemaVersion: 6,
   projectId: 'maintenance-test',
   name: '维护测试',
   dataPolicy: { defaultConfidentiality: 'internal' },

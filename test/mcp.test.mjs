@@ -36,8 +36,9 @@ test('MCP server exposes governed local tools and can search evidence', async ()
     const listed = await client.listTools();
     assert.deepEqual(listed.tools.map((tool) => tool.name).sort(), [
       'add_learning_log', 'add_memory_candidate', 'add_work_log', 'check_integrity',
-      'get_evidence_block', 'get_learning_lesson', 'list_learning_path', 'list_sources',
-      'search_evidence', 'update_learning_progress',
+      'get_evidence_block', 'get_learning_lesson', 'list_external_processing_runs', 'list_learning_path',
+      'list_sources', 'ocr_source_external', 'search_evidence', 'transcribe_audio_external',
+      'update_learning_progress',
     ]);
     const response = await client.callTool({ name: 'search_evidence', arguments: { query: '疫苗' } });
     assert.equal(response.isError, undefined);

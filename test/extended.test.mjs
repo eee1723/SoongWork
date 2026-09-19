@@ -14,7 +14,7 @@ import { deleteSource, deletionImpact, recordUsage, usageSummary } from '../src/
 import { integrityReport } from '../src/lib/maintenance.mjs';
 
 const config = {
-  schemaVersion: 5,
+  schemaVersion: 6,
   projectId: 'extended-test',
   dataPolicy: { defaultConfidentiality: 'synthetic' },
   network: { mode: 'deny-by-default', approvedServices: ['example.test', 'cdn.example.test'] },

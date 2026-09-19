@@ -10,7 +10,7 @@ import {
 } from '../src/lib/learning.mjs';
 
 const config = {
-  schemaVersion: 5,
+  schemaVersion: 6,
   projectId: 'learning-test',
   dataPolicy: { defaultConfidentiality: 'internal', realCompanyDataApproved: false },
 };

@@ -11,7 +11,7 @@
     },
     "knowledgeBackend": {
       "package": "pet-learning/local-catalog",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "license": "project-internal",
       "status": "approved",
       "scope": "local-catalog:pet-learning-local",
@@ -38,7 +38,7 @@
     },
     "memoryBackend": {
       "package": "pet-learning/local-catalog",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "status": "approved",
       "scope": "catalog:pet-learning-local"
     }

@@ -71,6 +71,8 @@ export async function integrityReport({ root, db }) {
   }
   const failedJobs = db.prepare("SELECT job_id, last_error FROM processing_job WHERE status = 'failed'").all();
   for (const job of failedJobs) issues.push({ severity: 'medium', kind: 'job_failed', id: job.job_id, detail: job.last_error });
+  const failedExternal = db.prepare("SELECT run_id, error_message FROM external_processing_run WHERE status = 'failed'").all();
+  for (const run of failedExternal) issues.push({ severity: 'medium', kind: 'external_processing_failed', id: run.run_id, detail: run.error_message });
 
   return {
     checkedAt: new Date().toISOString(),
@@ -91,6 +93,7 @@ const EXPORT_TABLES = [
   'derived_file', 'learning_stage', 'learning_lesson', 'lesson_quiz', 'lesson_evidence',
   'lesson_external_reference', 'glossary_entry', 'glossary_evidence', 'lesson_progress',
   'conflict_brief', 'learning_issue', 'learning_import',
+  'external_processing_run',
 ];
 
 export async function exportCatalog({ root, db, output = null }) {

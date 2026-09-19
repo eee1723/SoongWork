@@ -70,7 +70,7 @@ export function splitText(text, maxChars = 1200) {
 
 export function originalForVersion(root, db, versionId) {
   const row = db.prepare(`SELECT v.version_id, v.sha256, v.original_relative_path, v.processing_status,
-    s.source_id, s.title, s.source_type
+    s.source_id, s.title, s.source_type, s.confidentiality
     FROM source_version v JOIN source s ON s.source_id = v.source_id WHERE v.version_id = ?`).get(versionId);
   if (!row) throw new Error(`找不到 version_id: ${versionId}`);
   return { ...row, file: assertInside(root, join(root, row.original_relative_path), 'original') };

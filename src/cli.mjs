@@ -19,6 +19,7 @@ import {
   glossaryEntries, importLearningBundle, learningIssues, learningOverview, lessonDetail,
   searchLearning, updateLessonProgress,
 } from './lib/learning.mjs';
+import { listExternalProcessingRuns, runSiliconFlowAsr, runSiliconFlowOcr } from './lib/external-processing.mjs';
 
 function parseArgs(values) {
   const [command, ...rest] = values;
@@ -117,6 +118,20 @@ async function main() {
     if (command === 'learning-search') {
       if (!options.query) throw new Error('--query 必填');
       print(searchLearning(db, options.query));
+      return;
+    }
+    if (command === 'ocr') {
+      if (!options['version-id']) throw new Error('--version-id 必填');
+      print(await runSiliconFlowOcr({ root, db, config, versionId: options['version-id'] }));
+      return;
+    }
+    if (command === 'transcribe-audio') {
+      if (!options['version-id']) throw new Error('--version-id 必填');
+      print(await runSiliconFlowAsr({ root, db, config, versionId: options['version-id'] }));
+      return;
+    }
+    if (command === 'external-runs') {
+      print(listExternalProcessingRuns(db, options['version-id'] || null));
       return;
     }
     if (command === 'intake-file') {

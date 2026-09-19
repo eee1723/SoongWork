@@ -13,7 +13,7 @@ const corpus = JSON.parse(await readFile(join(root, 'eval', 'corpus.json'), 'utf
 const sandbox = await mkdtemp(join(tmpdir(), 'pet-learning-eval-'));
 await ensureProjectDirs(sandbox);
 const config = {
-  schemaVersion: 5,
+  schemaVersion: 6,
   projectId: 'synthetic-eval',
   name: '虚构评估项目',
   dataPolicy: { defaultConfidentiality: 'synthetic' },

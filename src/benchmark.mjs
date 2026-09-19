@@ -14,7 +14,7 @@ const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const corpus = JSON.parse(await readFile(join(root, 'eval', 'corpus.json'), 'utf8'));
 const sandbox = await mkdtemp(join(tmpdir(), 'pet-learning-benchmark-'));
 await ensureProjectDirs(sandbox);
-const config = { schemaVersion: 5, projectId: 'synthetic-benchmark', dataPolicy: { defaultConfidentiality: 'synthetic' } };
+const config = { schemaVersion: 6, projectId: 'synthetic-benchmark', dataPolicy: { defaultConfidentiality: 'synthetic' } };
 const db = openCatalog(sandbox, config);
 
 function percentile(values, fraction) {

@@ -11,6 +11,7 @@ import { deletionImpact, usageSummary } from './lib/operations.mjs';
 import {
   glossaryEntries, learningIssues, learningOverview, lessonDetail, searchLearning, updateLessonProgress,
 } from './lib/learning.mjs';
+import { listExternalProcessingRuns } from './lib/external-processing.mjs';
 
 const moduleRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -58,6 +59,7 @@ function summary(db) {
     lessons: scalar("SELECT COUNT(*) AS count FROM learning_lesson WHERE review_status != 'rejected'"),
     understoodLessons: scalar("SELECT COUNT(*) AS count FROM lesson_progress WHERE status = 'understood'"),
     pendingLearningIssues: scalar("SELECT COUNT(*) AS count FROM learning_issue WHERE status = 'pending'"),
+    failedExternalProcessing: scalar("SELECT COUNT(*) AS count FROM external_processing_run WHERE status = 'failed'"),
     usageRecords: scalar('SELECT COUNT(*) AS count FROM usage_ledger'),
     deletedSources: scalar('SELECT COUNT(*) AS count FROM source_deletion'),
     updatedAt: new Date().toISOString(),
@@ -140,11 +142,16 @@ export async function createDashboardServer({ root = moduleRoot } = {}) {
         sendJson(response, 200, searchLearning(db, url.searchParams.get('q')));
         return;
       }
+      if (request.method === 'GET' && url.pathname === '/api/external-runs') {
+        sendJson(response, 200, listExternalProcessingRuns(db, url.searchParams.get('versionId') || null));
+        return;
+      }
       if (request.method === 'GET' && url.pathname === '/api/governance') {
         const citations = await verifyCitations({ root, db });
         sendJson(response, 200, {
           conflicts: db.prepare("SELECT * FROM conflict_group WHERE status = 'open' ORDER BY created_at DESC").all(),
           failedJobs: db.prepare("SELECT * FROM processing_job WHERE status = 'failed' ORDER BY updated_at DESC").all(),
+          failedExternalProcessing: listExternalProcessingRuns(db).filter((item) => item.status === 'failed'),
           invalidCitations: citations.filter((item) => !item.valid),
         });
         return;

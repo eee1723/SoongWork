@@ -10,7 +10,7 @@
   <header class="masthead">
     <div>
       <p class="kicker">LOCAL EVIDENCE DESK · 本地证据台</p>
-      <h1>每个结论，都能沿着标签回到原件。</h1>
+      <h1>从原件出发，沿着证据学会真正理解。</h1>
     </div>
     <div class="seal" aria-label="安全状态">
       <span class="seal-dot"></span>
@@ -24,7 +24,9 @@
       <div class="rail-label">今日台面</div>
       <dl class="ledger" id="summary"></dl>
       <nav class="tabs" aria-label="信息视图">
-        <button class="tab active" data-view="sources">资料版本</button>
+        <button class="tab active" data-view="study">学习路径</button>
+        <button class="tab" data-view="glossary">白话词典</button>
+        <button class="tab" data-view="sources">资料版本</button>
         <button class="tab" data-view="memories">候选记忆</button>
         <button class="tab" data-view="learning">学习复习</button>
         <button class="tab" data-view="usage">用量台账</button>
@@ -34,19 +36,19 @@
 
     <section class="desk">
       <form class="search-panel" id="search-form">
-        <label for="query">在当前项目证据中检索</label>
+        <label for="query">同时检索课程、词典与项目证据</label>
         <div class="search-row">
           <input id="query" name="query" autocomplete="off" placeholder="输入术语、短语或内部叫法" required>
           <button type="submit">查找证据</button>
         </div>
-        <p>结果只来自已索引的当前有效版本；短词会使用精确匹配。</p>
+        <p>证据结果只来自当前有效版本；学习内容会标明“草稿”或“待映射”，不冒充已验证原件。</p>
       </form>
 
       <section class="evidence-board" aria-live="polite">
         <div class="board-heading">
           <div>
-            <p class="kicker" id="view-kicker">SOURCE REGISTER</p>
-            <h2 id="view-title">资料版本</h2>
+            <p class="kicker" id="view-kicker">LEARNING TRAIL</p>
+            <h2 id="view-title">学习路径</h2>
           </div>
           <span class="specimen-mark">PROJECT / PET-LEARNING</span>
         </div>

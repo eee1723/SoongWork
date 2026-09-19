@@ -7,6 +7,7 @@ import { openCatalog } from './lib/catalog.mjs';
 import { searchEvidence } from './lib/evidence.mjs';
 import { integrityReport } from './lib/maintenance.mjs';
 import { addLearningLog, addMemory, addWorkLog } from './lib/state.mjs';
+import { learningOverview, lessonDetail, updateLessonProgress } from './lib/learning.mjs';
 
 const root = projectRoot(process.env.PET_LEARNING_ROOT || process.cwd());
 await ensureProjectDirs(root);
@@ -100,6 +101,30 @@ server.registerTool('add_learning_log', {
   },
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
 }, async (input) => result(addLearningLog({ db, ...input })));
+
+server.registerTool('list_learning_path', {
+  description: '列出本地课程阶段、课节和当前学习状态；不返回练习题答案。',
+  inputSchema: {},
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+}, async () => result(learningOverview(db)));
+
+server.registerTool('get_learning_lesson', {
+  description: '读取一节本地课程、练习题、证据映射状态和参考链接；不会泄露练习题答案。',
+  inputSchema: { lessonId: z.string().min(1).describe('课节标识') },
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+}, async ({ lessonId }) => result(lessonDetail(db, lessonId)));
+
+server.registerTool('update_learning_progress', {
+  description: '保存课节状态、私人笔记或练习答案；答案在本地校验并返回解释。',
+  inputSchema: {
+    lessonId: z.string().min(1),
+    status: z.enum(['not_started', 'learning', 'understood', 'review_due']).optional(),
+    note: z.string().max(100000).optional(),
+    answerIndex: z.number().int().min(0).optional(),
+    reviewOn: z.string().optional(),
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+}, async (input) => result(updateLessonProgress({ db, ...input })));
 
 const shutdown = async () => {
   db.close();

@@ -11,6 +11,7 @@
 ```powershell
 npm install
 npm run init
+npm run learning:seed
 npm run verify
 npm run dashboard
 ```
@@ -25,7 +26,7 @@ npm run dashboard
 setup-dsh-desktop.cmd
 ```
 
-安装器会自动检测 DSH Desktop、Node.js 和用户数据目录，执行锁定依赖安装与 MCP 冒烟测试，并完成以下配置：
+安装器会自动检测 DSH Desktop、Node.js 和用户数据目录，执行锁定依赖安装、项目初始化、安全入门课程加载与 MCP 冒烟测试，并完成以下配置：
 
 - 从当前 Desktop 自带的 `standard` 复制项目专用 `pet-learning` Preset，不改官方 Preset；
 - 只加载本项目 `.dsh/skills`，注册 `pet_learning` 本地 stdio MCP，并关闭该 Preset 的网页工具；
@@ -36,7 +37,7 @@ setup-dsh-desktop.cmd
 安装成功后，在 DSH Desktop 中打开本项目工作区，新建空白会话，并在发送第一条消息前选择“宠物医疗工作与学习”Preset。可用下面的提示词确认 MCP 已接通：
 
 ```text
-请调用 mcp__pet_learning__list_sources 列出当前项目资料。
+请调用 mcp__pet_learning__list_learning_path 列出学习路径。
 ```
 
 常用维护命令：
@@ -68,7 +69,7 @@ node src/cli.mjs intake-file --file "C:\path\sample.pdf" --title "示例资料" 
 node src/cli.mjs intake-message --message-id "demo-001" --text "示例消息"
 node src/cli.mjs parse --version-id "VER-..."
 
-# 支持 TXT/MD、PDF、DOCX、PPTX、静态 HTML、VTT、转录 JSON
+# 支持 TXT/MD、PDF、DOCX、PPTX、XLSX、静态 HTML、VTT、转录 JSON
 node src/cli.mjs search --query "检验"
 node src/cli.mjs create-claim --statement "示例结论" --risk low
 node src/cli.mjs cite-claim --claim-id "CLM-..." --block-id "BLK-..." --role supports
@@ -78,7 +79,30 @@ node src/cli.mjs verify-citations
 node src/cli.mjs intake-file --file "C:\path\v2.pdf" --source-id "SRC-..." --supersedes-version-id "VER-old"
 ```
 
-原件位于 `sources/<source_id>/<version_id>/original/`，不会覆盖旧版本。解析产物位于 `derived/`，每个引用都绑定 `source_id`、`version_id`、`block_id` 和页/幻灯片/段落/行号/时间范围。
+原件位于 `sources/<source_id>/<version_id>/original/`，不会覆盖旧版本。解析产物位于 `derived/`，每个引用都绑定 `source_id`、`version_id`、`block_id` 和页/幻灯片/段落/单元格范围/行号/时间范围。PPTX 内嵌图片会作为带幻灯片定位的派生文件保存并参与完整性校验。
+
+## 学习路径与安全迁移
+
+首次加载内置的纯合成入门课程后启动看板：
+
+```powershell
+npm run learning:seed
+npm run dashboard
+```
+
+看板提供阶段课程、白话词典、主动回忆题、本地笔记和学习状态。练习题答案只在本机服务端校验；课程草稿、外部参考草稿和“待映射来源线索”都会明确标记，后者不会冒充已验证引用。
+
+可以导入与 `config/learning-starter.json`、`config/learning-reference-starter.json` 同结构的既有课程：
+
+```powershell
+node src/cli.mjs learning-import --curriculum "C:\path\curriculum.json" --reference "C:\path\reference.json" --classification deidentified
+node src/cli.mjs learning-overview
+node src/cli.mjs learning-lesson --lesson-id "lesson-id"
+node src/cli.mjs learning-progress --lesson-id "lesson-id" --status understood --note "自己的理解"
+node src/cli.mjs learning-glossary --query "证据"
+```
+
+`classification` 只接受 `synthetic`、`deidentified` 或 `internal`。当前 `realCompanyDataApproved=false`，因此 `internal` 会被硬性拒绝。迁移器只导入课程结构、文本、测验、词典、问题和来源线索；它不会复制旧项目的原件或图片，也不会把文件名/页码线索直接升级为证据。
 
 ## 网页与多媒体
 
@@ -134,7 +158,7 @@ node src/cli.mjs delete-source --source-id "SRC-..." --confirm-source-id "SRC-..
 
 `npm run dsh:safe -- <参数>` 使用精确锁定的 `@deepseek-ai/dsh@0.1.5-rc.2`、独立 `runtime/dsh-home`、只读默认权限、项目内 Skills，以及 `pet_learning` 本地 stdio MCP。展开配置可用 `npm run dsh:config` 查看。
 
-MCP 暴露 `search_evidence`、`list_sources`、`get_evidence_block`、`check_integrity`、`add_memory_candidate`、`add_work_log`、`add_learning_log`。模型不能通过该接口直接确认记忆、删除资料、覆盖已审结论或访问网络。
+MCP 暴露 `search_evidence`、`list_sources`、`get_evidence_block`、`check_integrity`、`add_memory_candidate`、`add_work_log`、`add_learning_log`、`list_learning_path`、`get_learning_lesson`、`update_learning_progress`。模型不能通过该接口直接确认记忆、删除资料、覆盖已审结论或访问网络。
 
 DSH Desktop 使用上方的一键安装器；`npm run dsh:safe` 是独立终端模式，两者共享同一个本地项目与 MCP 服务，但配置目录互不覆盖。
 

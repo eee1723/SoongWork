@@ -304,6 +304,145 @@ CREATE INDEX IF NOT EXISTS idx_keyframe_media ON media_keyframe(media_version_id
 CREATE INDEX IF NOT EXISTS idx_usage_time ON usage_ledger(project_id, occurred_at, metric);
 `;
 
+const MIGRATION_V5_SQL = `
+CREATE TABLE IF NOT EXISTS derived_file (
+  derived_file_id TEXT PRIMARY KEY,
+  artifact_id TEXT NOT NULL REFERENCES artifact(artifact_id),
+  version_id TEXT NOT NULL REFERENCES source_version(version_id),
+  file_kind TEXT NOT NULL,
+  relative_path TEXT NOT NULL,
+  sha256 TEXT NOT NULL,
+  locator_json TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  UNIQUE(version_id, relative_path)
+);
+
+CREATE TABLE IF NOT EXISTS learning_stage (
+  stage_id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  intro TEXT,
+  goal TEXT,
+  sort_order INTEGER NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS learning_lesson (
+  lesson_id TEXT PRIMARY KEY,
+  stage_id TEXT NOT NULL REFERENCES learning_stage(stage_id),
+  title TEXT NOT NULL,
+  brief TEXT,
+  body TEXT NOT NULL,
+  remember TEXT,
+  estimated_minutes INTEGER NOT NULL DEFAULT 10 CHECK (estimated_minutes > 0),
+  review_status TEXT NOT NULL CHECK (review_status IN ('draft','reviewed','rejected')),
+  sort_order INTEGER NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS lesson_quiz (
+  quiz_id TEXT PRIMARY KEY,
+  lesson_id TEXT NOT NULL UNIQUE REFERENCES learning_lesson(lesson_id),
+  question TEXT NOT NULL,
+  options_json TEXT NOT NULL,
+  answer_index INTEGER NOT NULL CHECK (answer_index >= 0),
+  explanation TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS lesson_evidence (
+  evidence_id TEXT PRIMARY KEY,
+  lesson_id TEXT NOT NULL REFERENCES learning_lesson(lesson_id),
+  version_id TEXT REFERENCES source_version(version_id),
+  block_id TEXT REFERENCES block(block_id),
+  source_hint TEXT,
+  locator_hint_json TEXT,
+  evidence_role TEXT NOT NULL CHECK (evidence_role IN ('supports','context','refutes')),
+  resolution_status TEXT NOT NULL CHECK (resolution_status IN ('pending','resolved')),
+  created_at TEXT NOT NULL,
+  CHECK (
+    (resolution_status = 'resolved' AND version_id IS NOT NULL AND block_id IS NOT NULL) OR
+    (resolution_status = 'pending' AND source_hint IS NOT NULL)
+  )
+);
+
+CREATE TABLE IF NOT EXISTS lesson_external_reference (
+  reference_id TEXT PRIMARY KEY,
+  lesson_id TEXT NOT NULL REFERENCES learning_lesson(lesson_id),
+  title TEXT NOT NULL,
+  url TEXT NOT NULL,
+  checked_at TEXT,
+  review_status TEXT NOT NULL CHECK (review_status IN ('draft','reviewed','rejected'))
+);
+
+CREATE TABLE IF NOT EXISTS glossary_entry (
+  term_id TEXT PRIMARY KEY,
+  term TEXT NOT NULL,
+  plain_name TEXT,
+  meaning TEXT NOT NULL,
+  category TEXT,
+  lesson_id TEXT REFERENCES learning_lesson(lesson_id),
+  review_status TEXT NOT NULL CHECK (review_status IN ('draft','reviewed','rejected')),
+  UNIQUE(term, lesson_id)
+);
+
+CREATE TABLE IF NOT EXISTS glossary_evidence (
+  term_id TEXT NOT NULL REFERENCES glossary_entry(term_id),
+  version_id TEXT NOT NULL REFERENCES source_version(version_id),
+  block_id TEXT NOT NULL REFERENCES block(block_id),
+  PRIMARY KEY(term_id, block_id)
+);
+
+CREATE TABLE IF NOT EXISTS lesson_progress (
+  lesson_id TEXT PRIMARY KEY REFERENCES learning_lesson(lesson_id),
+  status TEXT NOT NULL CHECK (status IN ('not_started','learning','understood','review_due')),
+  note TEXT,
+  last_answer_index INTEGER,
+  last_answer_correct INTEGER CHECK (last_answer_correct IS NULL OR last_answer_correct IN (0,1)),
+  review_on TEXT,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS conflict_brief (
+  conflict_group_id TEXT PRIMARY KEY REFERENCES conflict_group(conflict_group_id),
+  source_locator TEXT,
+  original_statement TEXT,
+  learning_guidance TEXT,
+  question_to_resolve TEXT,
+  risk_level TEXT NOT NULL CHECK (risk_level IN ('operational','medical','version','data','other'))
+);
+
+CREATE TABLE IF NOT EXISTS learning_issue (
+  issue_id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  source_locator TEXT,
+  original_statement TEXT,
+  learning_guidance TEXT,
+  question_to_resolve TEXT,
+  risk_level TEXT NOT NULL CHECK (risk_level IN ('operational','medical','version','data','other')),
+  status TEXT NOT NULL CHECK (status IN ('pending','promoted','dismissed')),
+  conflict_group_id TEXT REFERENCES conflict_group(conflict_group_id),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS learning_import (
+  import_id TEXT PRIMARY KEY,
+  origin TEXT NOT NULL,
+  classification TEXT NOT NULL CHECK (classification IN ('synthetic','deidentified','internal')),
+  content_sha256 TEXT NOT NULL UNIQUE,
+  imported_at TEXT NOT NULL,
+  summary_json TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_derived_file_artifact ON derived_file(artifact_id);
+CREATE INDEX IF NOT EXISTS idx_learning_lesson_stage ON learning_lesson(stage_id, sort_order);
+CREATE INDEX IF NOT EXISTS idx_lesson_evidence_lesson ON lesson_evidence(lesson_id, resolution_status);
+CREATE INDEX IF NOT EXISTS idx_glossary_term ON glossary_entry(term);
+CREATE INDEX IF NOT EXISTS idx_progress_status ON lesson_progress(status, review_on);
+CREATE INDEX IF NOT EXISTS idx_learning_issue_status ON learning_issue(status, risk_level);
+`;
+
 export function openCatalog(root, config) {
   const file = assertInside(root, join(root, 'runtime', 'catalog.sqlite'), 'catalog');
   const db = new DatabaseSync(file);
@@ -314,7 +453,7 @@ export function openCatalog(root, config) {
     db.close();
     throw new Error(`目录账本属于项目 ${existingProject.project_id}，拒绝以 ${config.projectId} 打开`);
   }
-  if (config.schemaVersion > 4) {
+  if (config.schemaVersion > 5) {
     db.close();
     throw new Error(`代码不支持 schemaVersion ${config.schemaVersion}`);
   }
@@ -341,6 +480,7 @@ export function openCatalog(root, config) {
       db.exec(MIGRATION_V3_SQL);
       db.prepare('UPDATE project_meta SET schema_version = 3 WHERE project_id = ?').run(config.projectId);
     });
+    currentVersion = 3;
   } else if (config.schemaVersion >= 3) {
     db.exec(MIGRATION_V3_SQL);
   }
@@ -349,8 +489,17 @@ export function openCatalog(root, config) {
       db.exec(MIGRATION_V4_SQL);
       db.prepare('UPDATE project_meta SET schema_version = 4 WHERE project_id = ?').run(config.projectId);
     });
+    currentVersion = 4;
   } else if (config.schemaVersion >= 4) {
     db.exec(MIGRATION_V4_SQL);
+  }
+  if (currentVersion < 5 && config.schemaVersion >= 5) {
+    transaction(db, () => {
+      db.exec(MIGRATION_V5_SQL);
+      db.prepare('UPDATE project_meta SET schema_version = 5 WHERE project_id = ?').run(config.projectId);
+    });
+  } else if (config.schemaVersion >= 5) {
+    db.exec(MIGRATION_V5_SQL);
   }
   return db;
 }

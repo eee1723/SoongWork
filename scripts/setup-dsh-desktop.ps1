@@ -73,7 +73,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
 if (-not $ProjectRoot) { $ProjectRoot = Split-Path -Parent $scriptDirectory }
-$InstallerVersion = '1.0.0'
+$InstallerVersion = '1.1.0'
 $ManagedBegin = '# >>> pet-learning installer managed begin'
 $ManagedEnd = '# <<< pet-learning installer managed end'
 
@@ -343,6 +343,16 @@ if (-not $SkipNpmInstall) {
   throw '已跳过 npm 安装，但 MCP 运行依赖不存在。请先运行 npm ci。'
 }
 
+Write-Step '初始化本地目录并加载安全入门课程'
+Push-Location $ProjectRoot
+try {
+  & $node.Path (Join-Path $ProjectRoot 'src\cli.mjs') init
+  if ($LASTEXITCODE -ne 0) { throw "项目初始化失败，退出码 $LASTEXITCODE" }
+  & $node.Path (Join-Path $ProjectRoot 'src\cli.mjs') learning-seed
+  if ($LASTEXITCODE -ne 0) { throw "入门课程加载失败，退出码 $LASTEXITCODE" }
+} finally { Pop-Location }
+Write-Ok '目录、目录库和纯合成入门课程已就绪。'
+
 Write-Step "生成项目专用 Preset: $PresetId"
 if (-not (Test-Path -LiteralPath $presetSource -PathType Container)) { throw "找不到官方 standard preset: $presetSource" }
 if (Test-Path -LiteralPath $presetTarget) {
@@ -446,5 +456,5 @@ if (-not $NoLaunch -and -not $runningDesktop) {
 Write-Host "`n配置完成。" -ForegroundColor Green
 Write-Host "1. 在 DSH Desktop 中选择工作区：$ProjectRoot"
 Write-Host "2. 新建空白会话，并在发送第一条消息前选择 Preset：$PresetId"
-Write-Host '3. 测试提示词：请调用 mcp__pet_learning__list_sources 列出当前项目资料。'
+Write-Host '3. 测试提示词：请调用 mcp__pet_learning__list_learning_path 列出学习路径。'
 if (Test-Path -LiteralPath $backupRoot) { Write-Host "本次备份：$backupRoot" }

@@ -112,10 +112,15 @@ export async function deleteSource({ root, db, config, sourceId, confirmSourceId
         }
         const blockIds = db.prepare('SELECT block_id FROM block WHERE version_id = ?').all(versionId).map((row) => row.block_id);
         for (const blockId of blockIds) db.prepare('DELETE FROM block_fts WHERE block_id = ?').run(blockId);
+        db.prepare(`UPDATE lesson_evidence SET resolution_status = 'pending',
+          source_hint = COALESCE(source_hint, '已删除证据版本 ' || ?), version_id = NULL, block_id = NULL
+          WHERE version_id = ?`).run(versionId, versionId);
+        db.prepare('DELETE FROM glossary_evidence WHERE version_id = ?').run(versionId);
         db.prepare('DELETE FROM citation WHERE version_id = ?').run(versionId);
         db.prepare('DELETE FROM backend_mapping WHERE version_id = ?').run(versionId);
         db.prepare('DELETE FROM transcript_attachment WHERE media_version_id = ?').run(versionId);
         db.prepare('DELETE FROM media_keyframe WHERE media_version_id = ?').run(versionId);
+        db.prepare('DELETE FROM derived_file WHERE version_id = ?').run(versionId);
         db.prepare('DELETE FROM block WHERE version_id = ?').run(versionId);
         db.prepare('DELETE FROM artifact WHERE version_id = ?').run(versionId);
         db.prepare('DELETE FROM source_snapshot WHERE version_id = ?').run(versionId);

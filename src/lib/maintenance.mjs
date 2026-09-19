@@ -50,6 +50,18 @@ export async function integrityReport({ root, db }) {
     }
   }
 
+  const derivedFiles = db.prepare('SELECT derived_file_id, sha256, relative_path FROM derived_file').all();
+  for (const derived of derivedFiles) {
+    try {
+      const file = assertInside(root, join(root, derived.relative_path), 'derived file');
+      if (!((await stat(file)).isFile()) || await fileHash(file) !== derived.sha256) {
+        issues.push({ severity: 'high', kind: 'derived_file_hash', id: derived.derived_file_id });
+      }
+    } catch (error) {
+      issues.push({ severity: 'high', kind: 'derived_file_missing', id: derived.derived_file_id, detail: error.message });
+    }
+  }
+
   const blockCount = db.prepare('SELECT COUNT(*) AS count FROM block').get().count;
   const ftsCount = db.prepare('SELECT COUNT(*) AS count FROM block_fts').get().count;
   if (blockCount !== ftsCount) issues.push({ severity: 'high', kind: 'fts_count', detail: { blockCount, ftsCount } });
@@ -63,7 +75,10 @@ export async function integrityReport({ root, db }) {
   return {
     checkedAt: new Date().toISOString(),
     ok: !issues.some((issue) => ['critical', 'high'].includes(issue.severity)),
-    counts: { versions: versions.length, artifacts: artifacts.length, blocks: blockCount, citations: citations.length },
+    counts: {
+      versions: versions.length, artifacts: artifacts.length, derivedFiles: derivedFiles.length,
+      blocks: blockCount, citations: citations.length,
+    },
     issues,
   };
 }
@@ -73,6 +88,9 @@ const EXPORT_TABLES = [
   'source_relation', 'conflict_group', 'conflict_member', 'processing_job', 'backend_mapping', 'concept',
   'term_alias', 'knowledge_relation', 'memory_item', 'work_log', 'learning_log', 'source_snapshot',
   'transcript_attachment', 'media_keyframe', 'usage_ledger', 'source_deletion', 'audit_event',
+  'derived_file', 'learning_stage', 'learning_lesson', 'lesson_quiz', 'lesson_evidence',
+  'lesson_external_reference', 'glossary_entry', 'glossary_evidence', 'lesson_progress',
+  'conflict_brief', 'learning_issue', 'learning_import',
 ];
 
 export async function exportCatalog({ root, db, output = null }) {

@@ -8,6 +8,9 @@ import { openCatalog } from './lib/catalog.mjs';
 import { searchEvidence, verifyCitations } from './lib/evidence.mjs';
 import { listMemories, reviewMemory } from './lib/state.mjs';
 import { deletionImpact, usageSummary } from './lib/operations.mjs';
+import {
+  glossaryEntries, learningIssues, learningOverview, lessonDetail, searchLearning, updateLessonProgress,
+} from './lib/learning.mjs';
 
 const moduleRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -51,6 +54,10 @@ function summary(db) {
     openConflicts: scalar("SELECT COUNT(*) AS count FROM conflict_group WHERE status = 'open'"),
     candidateMemories: scalar("SELECT COUNT(*) AS count FROM memory_item WHERE status = 'candidate'"),
     reviewDue: scalar("SELECT COUNT(*) AS count FROM learning_log WHERE status = 'review_due'"),
+    stages: scalar('SELECT COUNT(*) AS count FROM learning_stage'),
+    lessons: scalar("SELECT COUNT(*) AS count FROM learning_lesson WHERE review_status != 'rejected'"),
+    understoodLessons: scalar("SELECT COUNT(*) AS count FROM lesson_progress WHERE status = 'understood'"),
+    pendingLearningIssues: scalar("SELECT COUNT(*) AS count FROM learning_issue WHERE status = 'pending'"),
     usageRecords: scalar('SELECT COUNT(*) AS count FROM usage_ledger'),
     deletedSources: scalar('SELECT COUNT(*) AS count FROM source_deletion'),
     updatedAt: new Date().toISOString(),
@@ -111,6 +118,28 @@ export async function createDashboardServer({ root = moduleRoot } = {}) {
         sendJson(response, 200, db.prepare('SELECT * FROM learning_log ORDER BY occurred_on DESC, created_at DESC LIMIT 100').all());
         return;
       }
+      if (request.method === 'GET' && url.pathname === '/api/curriculum') {
+        sendJson(response, 200, learningOverview(db));
+        return;
+      }
+      if (request.method === 'GET' && url.pathname.startsWith('/api/lessons/')) {
+        const lessonId = decodeURIComponent(url.pathname.slice('/api/lessons/'.length));
+        if (!lessonId || lessonId.includes('/')) throw new Error('lessonId 无效');
+        sendJson(response, 200, lessonDetail(db, lessonId));
+        return;
+      }
+      if (request.method === 'GET' && url.pathname === '/api/glossary') {
+        sendJson(response, 200, glossaryEntries(db, url.searchParams.get('q') || ''));
+        return;
+      }
+      if (request.method === 'GET' && url.pathname === '/api/learning-issues') {
+        sendJson(response, 200, learningIssues(db));
+        return;
+      }
+      if (request.method === 'GET' && url.pathname === '/api/learning-search') {
+        sendJson(response, 200, searchLearning(db, url.searchParams.get('q')));
+        return;
+      }
       if (request.method === 'GET' && url.pathname === '/api/governance') {
         const citations = await verifyCitations({ root, db });
         sendJson(response, 200, {
@@ -138,6 +167,19 @@ export async function createDashboardServer({ root = moduleRoot } = {}) {
         const memoryId = decodeURIComponent(url.pathname.slice('/api/memories/'.length));
         const body = await readBody(request);
         sendJson(response, 200, reviewMemory({ db, memoryId, action: body.action, replacement: body.replacement }));
+        return;
+      }
+      if (request.method === 'POST' && url.pathname.startsWith('/api/lessons/') && url.pathname.endsWith('/progress')) {
+        if (request.headers['x-csrf-token'] !== csrfToken) {
+          sendJson(response, 403, { error: 'CSRF token 无效' });
+          return;
+        }
+        const lessonId = decodeURIComponent(url.pathname.slice('/api/lessons/'.length, -'/progress'.length));
+        if (!lessonId || lessonId.includes('/')) throw new Error('lessonId 无效');
+        const body = await readBody(request);
+        sendJson(response, 200, updateLessonProgress({
+          db, lessonId, status: body.status, note: body.note, answerIndex: body.answerIndex, reviewOn: body.reviewOn,
+        }));
         return;
       }
       sendJson(response, 404, { error: 'Not found' });

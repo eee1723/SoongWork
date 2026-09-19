@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-import { resolve } from 'node:path';
+import { readFile } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
 import { ensureProjectDirs, loadConfig, projectRoot } from './lib/project.mjs';
 import { openCatalog } from './lib/catalog.mjs';
 import { intakeFile, intakeMessage } from './lib/intake.mjs';
@@ -14,6 +15,10 @@ import {
 import { createBackup, exportCatalog, integrityReport, restoreBackup } from './lib/maintenance.mjs';
 import { attachKeyframe, attachTranscript } from './lib/media.mjs';
 import { deleteSource, deletionImpact, recordUsage, usageSummary } from './lib/operations.mjs';
+import {
+  glossaryEntries, importLearningBundle, learningIssues, learningOverview, lessonDetail,
+  searchLearning, updateLessonProgress,
+} from './lib/learning.mjs';
 
 function parseArgs(values) {
   const [command, ...rest] = values;
@@ -32,6 +37,12 @@ function parseArgs(values) {
 
 function print(value) {
   process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
+}
+
+async function readJson(file, maxBytes = 10 * 1024 * 1024) {
+  const bytes = await readFile(file);
+  if (bytes.length > maxBytes) throw new Error(`JSON 文件超过 ${maxBytes} 字节上限: ${file}`);
+  return JSON.parse(bytes.toString('utf8'));
 }
 
 async function main() {
@@ -56,6 +67,58 @@ async function main() {
 
   const db = openCatalog(root, config);
   try {
+    if (command === 'learning-seed') {
+      const curriculumFile = join(root, 'config', 'learning-starter.json');
+      const referenceFile = join(root, 'config', 'learning-reference-starter.json');
+      print(importLearningBundle({
+        db, config, curriculum: await readJson(curriculumFile), reference: await readJson(referenceFile),
+        origin: 'bundled-safe-starter', classification: 'synthetic',
+      }));
+      return;
+    }
+    if (command === 'learning-import') {
+      if (!options.curriculum) throw new Error('--curriculum 必填');
+      const curriculumFile = resolve(options.curriculum);
+      const referenceFile = options.reference ? resolve(options.reference) : null;
+      print(importLearningBundle({
+        db, config, curriculum: await readJson(curriculumFile),
+        reference: referenceFile ? await readJson(referenceFile) : {},
+        origin: options.origin || curriculumFile,
+        classification: options.classification || 'synthetic',
+      }));
+      return;
+    }
+    if (command === 'learning-overview') {
+      print(learningOverview(db));
+      return;
+    }
+    if (command === 'learning-lesson') {
+      if (!options['lesson-id']) throw new Error('--lesson-id 必填');
+      print(lessonDetail(db, options['lesson-id']));
+      return;
+    }
+    if (command === 'learning-progress') {
+      if (!options['lesson-id']) throw new Error('--lesson-id 必填');
+      print(updateLessonProgress({
+        db, lessonId: options['lesson-id'], status: options.status, note: options.note,
+        answerIndex: options['answer-index'] === undefined ? undefined : Number(options['answer-index']),
+        reviewOn: options['review-on'],
+      }));
+      return;
+    }
+    if (command === 'learning-glossary') {
+      print(glossaryEntries(db, options.query || ''));
+      return;
+    }
+    if (command === 'learning-issues') {
+      print(learningIssues(db));
+      return;
+    }
+    if (command === 'learning-search') {
+      if (!options.query) throw new Error('--query 必填');
+      print(searchLearning(db, options.query));
+      return;
+    }
     if (command === 'intake-file') {
       if (!options.file) throw new Error('--file 必填');
       print(await intakeFile({

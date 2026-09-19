@@ -16,6 +16,7 @@
     "desktop:setup": "powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File scripts/setup-dsh-desktop.ps1",
     "desktop:uninstall": "powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File scripts/setup-dsh-desktop.ps1 -Uninstall",
     "dashboard": "node src/server.mjs",
+    "learning:seed": "node src/cli.mjs learning-seed",
     "integrity": "node src/cli.mjs integrity",
     "eval": "node src/eval.mjs",
     "benchmark": "node src/benchmark.mjs",

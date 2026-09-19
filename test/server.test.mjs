@@ -8,9 +8,10 @@ import { openCatalog } from '../src/lib/catalog.mjs';
 import { intakeMessage } from '../src/lib/intake.mjs';
 import { indexPlainText } from '../src/lib/evidence.mjs';
 import { createDashboardServer } from '../src/server.mjs';
+import { importLearningBundle } from '../src/lib/learning.mjs';
 
 const config = {
-  schemaVersion: 4,
+  schemaVersion: 5,
   projectId: 'dashboard-test',
   name: '测试看板',
   dataPolicy: { defaultConfidentiality: 'internal', externalTransmissionAllowed: false, realCompanyDataApproved: false },
@@ -26,6 +27,15 @@ test('dashboard API binds locally, searches evidence and requires CSRF for write
   const db = openCatalog(root, config);
   const intake = await intakeMessage({ root, config, db, messageId: 'dashboard-msg', text: '看板检索脱敏证据' });
   await indexPlainText({ root, db, versionId: intake.versionId });
+  importLearningBundle({
+    db, config, classification: 'synthetic', origin: 'server-test', reference: {},
+    curriculum: {
+      stages: [{ id: 'safe', title: '安全学习' }],
+      lessons: [{ id: 'safe-lesson', stage: 'safe', title: '合成课节', body: '只用于测试', minutes: 3, sources: [], web: [],
+        quiz: { question: '正确选项？', options: ['A', 'B'], answer: 1, explain: 'B 正确' } }],
+      refs: {},
+    },
+  });
   db.close();
 
   const { server } = await createDashboardServer({ root });
@@ -39,6 +49,7 @@ test('dashboard API binds locally, searches evidence and requires CSRF for write
   assert.match(bootstrap.headers.get('content-security-policy'), /default-src 'self'/);
   const boot = await bootstrap.json();
   assert.equal(boot.summary.sources, 1);
+  assert.equal(boot.summary.lessons, 1);
   assert.ok(boot.csrfToken);
 
   const search = await fetch(`${base}/api/search?q=${encodeURIComponent('脱敏证据')}`).then((response) => response.json());
@@ -47,6 +58,16 @@ test('dashboard API binds locally, searches evidence and requires CSRF for write
     method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'confirm' }),
   });
   assert.equal(forbidden.status, 403);
+  const curriculum = await fetch(`${base}/api/curriculum`).then((response) => response.json());
+  assert.equal(curriculum[0].lessons[0].lessonId, 'safe-lesson');
+  const lesson = await fetch(`${base}/api/lessons/safe-lesson`).then((response) => response.json());
+  assert.equal('answerIndex' in lesson.quiz, false);
+  const progress = await fetch(`${base}/api/lessons/safe-lesson/progress`, {
+    method: 'POST', headers: { 'content-type': 'application/json', 'x-csrf-token': boot.csrfToken },
+    body: JSON.stringify({ answerIndex: 1, status: 'understood', note: '已主动回忆' }),
+  });
+  assert.equal(progress.status, 200);
+  assert.equal((await progress.json()).lastAnswerCorrect, true);
 });
 
 test('dashboard assets contain no remote dependencies or inline executable script', async () => {

@@ -15,7 +15,7 @@ import {
 } from '../src/lib/state.mjs';
 
 const config = {
-  schemaVersion: 4,
+  schemaVersion: 5,
   projectId: 'test-project',
   dataPolicy: { defaultConfidentiality: 'internal' },
 };
@@ -160,7 +160,7 @@ test('schema v1 catalog migrates transactionally to the current schema', async (
   v1.close();
   const v2 = openCatalog(root, config);
   try {
-    assert.equal(v2.prepare('SELECT schema_version AS version FROM project_meta').get().version, 4);
+    assert.equal(v2.prepare('SELECT schema_version AS version FROM project_meta').get().version, 5);
     assert.doesNotThrow(() => v2.prepare('SELECT COUNT(*) FROM artifact').get());
     assert.doesNotThrow(() => v2.prepare('SELECT COUNT(*) FROM memory_item').get());
     assert.doesNotThrow(() => v2.prepare('SELECT COUNT(*) FROM usage_ledger').get());
@@ -196,13 +196,36 @@ test('PPTX parser preserves slide and notes locators', async (t) => {
   const zip = new JSZip();
   zip.file('ppt/slides/slide1.xml', '<p:sld xmlns:p="p" xmlns:a="a"><a:t>犬猫疫苗培训</a:t><a:t>核对批号</a:t></p:sld>');
   zip.file('ppt/notesSlides/notesSlide1.xml', '<p:notes xmlns:p="p" xmlns:a="a"><a:t>讲者备注：仅限脱敏演示</a:t></p:notes>');
+  zip.file('ppt/slides/_rels/slide1.xml.rels', '<Relationships><Relationship Id="rId1" Target="../media/image1.png"/></Relationships>');
+  zip.file('ppt/media/image1.png', Buffer.from('synthetic-image'));
   const file = join(root, 'training.pptx');
   await writeFile(file, await zip.generateAsync({ type: 'nodebuffer' }));
   const intake = await intakeFile({ root, config, db, file, title: '虚构培训' });
   const parsed = await parseVersion({ root, db, versionId: intake.versionId });
   assert.equal(parsed.blockCount, 2);
+  assert.equal(parsed.imageCount, 1);
   assert.equal(searchEvidence({ db, query: '核对批号' })[0].locator.slide, 1);
   assert.equal(searchEvidence({ db, query: '讲者备注' })[0].locator.contentType, 'notes');
+  const derived = db.prepare('SELECT relative_path AS relativePath, locator_json AS locatorJson FROM derived_file').get();
+  assert.deepEqual(JSON.parse(derived.locatorJson), { kind: 'slide-image', slides: [1] });
+  assert.deepEqual(await readFile(join(root, derived.relativePath)), Buffer.from('synthetic-image'));
+});
+
+test('XLSX parser keeps sheet names and cell-range locators', async (t) => {
+  const { root, db } = await fixture();
+  t.after(() => db.close());
+  const zip = new JSZip();
+  zip.file('xl/workbook.xml', '<workbook xmlns:r="r"><sheets><sheet name="脱敏台账" sheetId="1" r:id="rId1"/></sheets></workbook>');
+  zip.file('xl/_rels/workbook.xml.rels', '<Relationships><Relationship Id="rId1" Target="worksheets/sheet1.xml"/></Relationships>');
+  zip.file('xl/sharedStrings.xml', '<sst><si><t>样本编号</t></si><si><t>合成-001</t></si></sst>');
+  zip.file('xl/worksheets/sheet1.xml', '<worksheet><sheetData><row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c></row><row r="2"><c r="A2" t="inlineStr"><is><t>结论</t></is></c><c r="B2"><v>42</v></c></row></sheetData></worksheet>');
+  const file = join(root, 'ledger.xlsx');
+  await writeFile(file, await zip.generateAsync({ type: 'nodebuffer' }));
+  const intake = await intakeFile({ root, config, db, file, title: '合成台账' });
+  const parsed = await parseVersion({ root, db, versionId: intake.versionId });
+  assert.equal(parsed.blockCount, 2);
+  const result = searchEvidence({ db, query: '合成-001' })[0];
+  assert.deepEqual(result.locator, { kind: 'cell_range', sheet: '脱敏台账', row: 1, startCell: 'A1', endCell: 'B1' });
 });
 
 test('DOCX parser extracts paragraphs with stable paragraph locators', async (t) => {

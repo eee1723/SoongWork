@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "updated": "2026-09-19",
+  "terms": [
+    { "key": "来源", "name": "资料身份", "meaning": "一份资料在多个版本之间保持不变的身份。", "category": "证据基础", "lesson": "source-version-block" },
+    { "key": "版本", "name": "某次收到的具体文件", "meaning": "带接收时间与哈希的原件快照；标题相同也可能是不同版本。", "category": "证据基础", "lesson": "source-version-block" },
+    { "key": "证据块", "name": "带定位的原文片段", "meaning": "从版本中抽取的最小可复核片段，定位可以是页码、幻灯片、时间范围或单元格范围。", "category": "证据基础", "lesson": "source-version-block" },
+    { "key": "哈希", "name": "文件指纹", "meaning": "用于发现原件或派生文件是否被意外改动的摘要值。", "category": "完整性", "lesson": "source-version-block" },
+    { "key": "冲突", "name": "资料说法不一致", "meaning": "两个或更多资料对同一问题给出不同答案，需要记录适用范围并等待授权裁决。", "category": "治理", "lesson": "fact-inference-unknown" },
+    { "key": "复习到期", "name": "需要再次主动回忆", "meaning": "不是内容失效，而是到了计划中的自测或复核时间。", "category": "学习", "lesson": "review-loop" }
+  ],
+  "issues": []
+}

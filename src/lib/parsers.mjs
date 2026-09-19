@@ -1,9 +1,11 @@
-import { readFile } from 'node:fs/promises';
-import { basename, extname } from 'node:path';
+import { createHash } from 'node:crypto';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { basename, dirname, extname, join } from 'node:path';
 import JSZip from 'jszip';
 import mammoth from 'mammoth';
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { hashFile, indexPlainText, originalForVersion, persistParsedBlocks, splitText } from './evidence.mjs';
+import { assertInside } from './project.mjs';
 
 function decodeXml(value) {
   return value
@@ -24,6 +26,116 @@ function chunkValue(text, locatorFactory, maxChars = 1600) {
     chunks.push({ text: normalized.slice(offset, offset + maxChars), locator: locatorFactory(part) });
   }
   return chunks;
+}
+
+function stableId(prefix, value) {
+  return `${prefix}-${createHash('sha256').update(value).digest('hex').slice(0, 24)}`;
+}
+
+function cellColumn(cell) {
+  return cell.match(/^[A-Z]+/i)?.[0]?.toUpperCase() || '';
+}
+
+function xmlAttribute(tag, name) {
+  return tag.match(new RegExp(`\\s${name}=["']([^"']+)["']`))?.[1] || null;
+}
+
+async function parseXlsx({ root, db, source }) {
+  const zip = await JSZip.loadAsync(await readFile(source.file));
+  const sharedStrings = [];
+  const sharedFile = zip.file('xl/sharedStrings.xml');
+  if (sharedFile) {
+    const xml = await sharedFile.async('string');
+    for (const match of xml.matchAll(/<si(?:\s[^>]*)?>([\s\S]*?)<\/si>/g)) {
+      sharedStrings.push([...match[1].matchAll(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g)]
+        .map((part) => decodeXml(part[1])).join(''));
+    }
+  }
+
+  const sheetNames = new Map();
+  const workbook = zip.file('xl/workbook.xml');
+  const relationships = zip.file('xl/_rels/workbook.xml.rels');
+  if (workbook && relationships) {
+    const relXml = await relationships.async('string');
+    const targetById = new Map([...relXml.matchAll(/<Relationship\b[^>]*\/>/g)].map((match) => [
+      xmlAttribute(match[0], 'Id'), xmlAttribute(match[0], 'Target'),
+    ]));
+    const workbookXml = await workbook.async('string');
+    for (const match of workbookXml.matchAll(/<sheet\b[^>]*\/>/g)) {
+      const target = targetById.get(xmlAttribute(match[0], 'r:id'));
+      if (target) sheetNames.set(`xl/${target.replace(/^\//, '').replace(/^xl\//, '')}`, decodeXml(xmlAttribute(match[0], 'name') || target));
+    }
+  }
+
+  const sheetFiles = Object.keys(zip.files).filter((name) => /^xl\/worksheets\/sheet\d+\.xml$/.test(name)).sort();
+  const blocks = [];
+  for (const [sheetIndex, sheetFile] of sheetFiles.entries()) {
+    const sheet = sheetNames.get(sheetFile) || `Sheet ${sheetIndex + 1}`;
+    const xml = await zip.file(sheetFile).async('string');
+    for (const rowMatch of xml.matchAll(/<row\b([^>]*)>([\s\S]*?)<\/row>/g)) {
+      const cells = [];
+      for (const cellMatch of rowMatch[2].matchAll(/<c\b([^>]*)>([\s\S]*?)<\/c>/g)) {
+        const cellTag = `<c ${cellMatch[1]}>`;
+        const ref = xmlAttribute(cellTag, 'r') || `${cellColumn('A')}${cells.length + 1}`;
+        const type = xmlAttribute(cellTag, 't');
+        const raw = cellMatch[2].match(/<v(?:\s[^>]*)?>([\s\S]*?)<\/v>/)?.[1];
+        const inline = [...cellMatch[2].matchAll(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g)].map((item) => decodeXml(item[1])).join('');
+        let value = inline || (raw === undefined ? '' : decodeXml(raw));
+        if (type === 's' && raw !== undefined) value = sharedStrings[Number(raw)] ?? value;
+        if (type === 'b') value = raw === '1' ? 'TRUE' : 'FALSE';
+        if (String(value).trim()) cells.push({ ref, value: String(value).trim() });
+      }
+      if (!cells.length) continue;
+      const row = Number(xmlAttribute(`<row ${rowMatch[1]}>`, 'r')) || blocks.length + 1;
+      blocks.push({
+        text: cells.map((cell) => `${cell.ref}: ${cell.value}`).join(' | '),
+        locator: { kind: 'cell_range', sheet, row, startCell: cells[0].ref, endCell: cells.at(-1).ref },
+      });
+    }
+  }
+  return persistParsedBlocks({
+    root, db, source, parserName: 'xlsx-xml', parserVersion: '1', parsedBlocks: blocks,
+    metadata: { sheets: sheetFiles.length, formulasCalculated: false },
+  });
+}
+
+async function persistPptxMedia({ root, db, source, zip, artifactId, slideFiles }) {
+  const slidesByTarget = new Map();
+  for (const slideFile of slideFiles) {
+    const slide = Number(slideFile.match(/slide(\d+)/)[1]);
+    const relFile = `ppt/slides/_rels/slide${slide}.xml.rels`;
+    if (!zip.file(relFile)) continue;
+    const relXml = await zip.file(relFile).async('string');
+    for (const match of relXml.matchAll(/<Relationship\b[^>]*\/>/g)) {
+      const target = xmlAttribute(match[0], 'Target');
+      if (!target || !target.includes('/media/')) continue;
+      const name = basename(target.replaceAll('\\', '/'));
+      if (!slidesByTarget.has(name)) slidesByTarget.set(name, []);
+      slidesByTarget.get(name).push(slide);
+    }
+  }
+  const insert = db.prepare(`INSERT OR IGNORE INTO derived_file
+    (derived_file_id, artifact_id, version_id, file_kind, relative_path, sha256, locator_json, created_at)
+    VALUES (?, ?, ?, 'pptx-embedded-image', ?, ?, ?, ?)`);
+  let imageCount = 0;
+  for (const name of [...slidesByTarget.keys()].sort()) {
+    const entry = zip.file(`ppt/media/${name}`);
+    if (!entry) continue;
+    const bytes = await entry.async('nodebuffer');
+    const hash = createHash('sha256').update(bytes).digest('hex');
+    const relativePath = `derived/${source.version_id}/pptx-media/${name}`;
+    const file = assertInside(root, join(root, relativePath), 'PPTX embedded image');
+    await mkdir(dirname(file), { recursive: true });
+    try {
+      await writeFile(file, bytes, { flag: 'wx' });
+    } catch (error) {
+      if (error.code !== 'EEXIST' || await hashFile(file) !== hash) throw error;
+    }
+    insert.run(stableId('DRV', `${source.version_id}:${relativePath}`), artifactId, source.version_id,
+      relativePath, hash, JSON.stringify({ kind: 'slide-image', slides: slidesByTarget.get(name) }), new Date().toISOString());
+    imageCount += 1;
+  }
+  return imageCount;
 }
 
 function timestampMs(value) {
@@ -130,10 +242,12 @@ async function parsePptx({ root, db, source }) {
       blocks.push(...chunkValue(notes, (part) => ({ kind: 'slide', slide, part, contentType: 'notes' })));
     }
   }
-  return persistParsedBlocks({
+  const parsed = await persistParsedBlocks({
     root, db, source, parserName: 'pptx-xml', parserVersion: '1', parsedBlocks: blocks,
     metadata: { slides: slideFiles.length },
   });
+  const imageCount = await persistPptxMedia({ root, db, source, zip, artifactId: parsed.artifactId, slideFiles });
+  return { ...parsed, imageCount };
 }
 
 async function parseHtml({ root, db, source }) {
@@ -167,6 +281,7 @@ export async function parseVersion({ root, db, versionId }) {
     if (extension === '.pdf') return await parsePdf({ root, db, source });
     if (extension === '.docx') return await parseDocx({ root, db, source });
     if (extension === '.pptx') return await parsePptx({ root, db, source });
+    if (extension === '.xlsx') return await parseXlsx({ root, db, source });
     if (['.html', '.htm'].includes(extension)) return await parseHtml({ root, db, source });
     if (extension === '.vtt') return await parseTranscript({ root, db, source, extension });
     if (extension === '.json' && source.source_type === 'transcript') return await parseTranscript({ root, db, source, extension });
